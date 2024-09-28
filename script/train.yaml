@@ -1,0 +1,77 @@
+data_args:
+  train_path: "data/test/test_1000"
+  val_path: "data/test/test_100"
+  split: "train"
+  cache_dir: "./data_cache"
+  sentence_max_length: 5
+  max_length: 1024
+
+training_args:
+  bf16: True
+  use_lora: true
+  learning_rate: 8e-5
+  lr_scheduler_type: "cosine"
+  warmup_ratio: 0.1
+  weight_decay: 0.0
+  gradient_checkpointing: true
+  gradient_checkpointing_kwargs: {"use_reentrant": False}
+  save_safetensors: true
+  torch_compile_backend: "cudagraphs"
+  quantization: 0 # 0 mean not use quantization 4 mean 4 bit 8 mean 8 bit
+  output_dir: "dump_shit"
+  overwrite_output_dir: true
+  num_train_epochs: 6
+  per_device_train_batch_size: 8
+  per_device_eval_batch_size: 8
+  gradient_accumulation_steps: 8
+  do_train: true
+  do_eval: True
+  eval_strategy: "epoch" # Evaluation is done (and logged) every eval_steps
+  logging_strategy: "steps"
+  save_strategy: "epoch"
+  # eval_steps: 10
+  # seed: null
+  resume_from_checkpoint: False
+  load_best_model_at_end: True
+  prediction_loss_only: False
+  label_names: ["reconstruction_labels", "shift_labels"]
+  metric_for_best_model: "eval_loss"
+
+model_args:
+  embedder_based: "HuggingFaceTB/SmolLM-135M"
+  thinker_based: "HuggingFaceTB/SmolLM-135M"
+  EoTR_based: null
+  model_kwargs:
+    token: "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"
+    use_cache: False
+    attn_implementation: "sdpa" # flash_attention_2, sdpa, eager
+
+tokenizer_args:
+  pretrained_model_name_or_path: "HuggingFaceTB/SmolLM-135M"
+  cache_dir: "./tokenizer_data"
+  token: "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"
+  trust_remote_code: true
+  padding_side: "right"
+  eot_token: "<EOT>"
+
+lora_args:
+  use_dora: False
+  r: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+  bias: "none"
+  target_modules: "all-linear"
+  modules_to_save: ['embedder_thinker_map', 'thinker_thought_word_map']
+
+wandb_args:
+  run_name: "freeze hill" # "My goodfellas"
+  logging_steps: 1
+  report_to: "wandb"
+
+callback_args:
+  patient: 3
+
+huggingface_args:
+  push_to_hub: false
+  hub_private_repo: true
+  hub_model_id: "Thought_generation_model_demo"

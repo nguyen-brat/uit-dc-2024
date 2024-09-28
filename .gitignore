@@ -1,0 +1,5 @@
+test.py
+notebook
+model/ocr/transformerocr.pth
+model/craft/craft_mlt_25k.pth
+model/craft/craft_refiner_CTW1500.pth
