@@ -1,3 +1,4 @@
+vietocr
 transformers
 deepspeed
 accelerate
@@ -7,11 +8,10 @@ pandas
 matplotlib
 torch
 tiktoken
-einops
+einops==0.8.0
 transformers_stream_generator
 liger-kernel
 qwen_vl_utils
 scikit-learn==1.5.2
-vietocr
 datasets
 easydict

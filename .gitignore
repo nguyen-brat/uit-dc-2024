@@ -3,3 +3,11 @@ notebook
 model/ocr/transformerocr.pth
 model/craft/craft_mlt_25k.pth
 model/craft/craft_refiner_CTW1500.pth
+
+**/__pycache__
+~/__pycache__
+cache
+__pycache__/*.pyc
+__pycache__/*.pyo
+__pycache__/
+**/__pycache__/

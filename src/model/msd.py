@@ -1,23 +1,44 @@
 from transformers import (
-    Qwen2VLForConditionalGeneration,
     PreTrainedModel,
-    AutoConfig
+    AutoConfig,
+    LlamaForCausalLM,
 )
+from transformers.models.qwen2_vl.modeling_qwen2_vl import Qwen2VLPreTrainedModel
 from qwen_vl_utils import process_vision_info
 from torch import nn
 import torch
 from typing import Optional, List
+import functools
+from torch.utils.checkpoint import checkpoint
+
+from .config import MSDConfig
+from .base import Qwen2VLHL, MSDCrossEncoderLayer
+
+from transformers import BertModel
+
+# LLAMA_ATTENTION_CLASSES = {
+#     "eager": MSDAttention,
+#     "flash_attention_2": MSDFlashAttention2,
+#     "sdpa": MSDSdpaAttention,
+# }
 
 
-class MSD(PreTrainedModel):
+class MSD(Qwen2VLPreTrainedModel):
+    config_class = MSDConfig
+    supports_gradient_checkpointing = True
+    _supports_flash_attn_2 = True
+    _supports_sdpa = True
+    base_model_prefix = "model"
+
     def __init__(
             self,
-            base_model,
-            num_class,
+            config:MSDConfig,
     ):
-        self.base = Qwen2VLForConditionalGeneration.from_pretrained(base_model)
-        self.config = AutoConfig.from_pretrained(base_model)
-        self.classification_layer = nn.Linear(self.config.hidden_size, num_class)
+        super().__init__(config)
+        self.base = Qwen2VLHL.from_pretrained(config.base_model, **config.model_kwargs)
+        self.encoder_layers = MSDCrossEncoderLayer(config)
+        self.classification_layer = nn.Linear(self.config.hidden_size, config.num_class)
+        self.gradient_checkpointing = False
 
     def forward(
         self,
@@ -55,14 +76,27 @@ class MSD(PreTrainedModel):
             rope_deltas,
         ).logtis
 
+        if self.gradient_checkpointing and self.training:
+            seq_logits = self._gradient_checkpointing_func(
+                self.encoder_layers.__call__,
+                seq_logits,
+            )
+        else:
+            seq_logits = self.encoder_layers(seq_logits)
+
         mean_logits = self.masked_mean(seq_logits, attention_mask)
-        logits = self.classification_layer(mean_logits)
+
+        if self.gradient_checkpointing and self.training:
+            seq_logits = self._gradient_checkpointing_func(
+                self.classification_layer.__call__,
+                mean_logits,
+            )
+        else:
+            logits = self.classification_layer(mean_logits)
+
         loss = self.compute_loss(logits, labels)
 
-        return dict(
-            logits=logits,
-            loss=loss 
-        )
+        return dict(logits=logits, loss=loss)
 
 
     def masked_mean(tensor, mask, dim):
@@ -93,14 +127,47 @@ class MSD(PreTrainedModel):
         loss = loss_fc(logits, labels)
 
         return loss
-    
+
 
     def freeze_base(self):
         for p in self.base_model.parameters():
             p.requires_grad_(False)
+
 
     def freeze_vision(self):
         if hasattr(self.base,'visual'):
             self.base.visual.requires_grad_(False)
             if hasattr(self.base.visual,'merger'):
                 self.base.visual.merger.requires_grad_(True)
+
+
+    def gradient_checkpointing_enable(self, gradient_checkpointing_kwargs=None):
+        self.gradient_checkpointing = True
+        if gradient_checkpointing_kwargs is None:
+            gradient_checkpointing_kwargs = {"use_reentrant": False}
+        self._gradient_checkpointing_func = functools.partial(checkpoint, **gradient_checkpointing_kwargs)
+        self.base.gradient_checkpointing_enable(gradient_checkpointing_kwargs)
+
+
+    def gradient_checkpointing_disable(self):
+        self.gradient_checkpointing = False
+        self.base.gradient_checkpointing_disable()
+
+
+    def _set_gradient_checkpointing(self, module, value=False):
+        if hasattr(module, "gradient_checkpointing"):
+            module.gradient_checkpointing = value
+
+
+    def get_input_embeddings(self) -> torch.nn.Module:
+        """
+        Returns the model's input embeddings.
+
+        Returns:
+            `nn.Module`: A torch module mapping vocabulary to hidden states.
+        """
+        return self.base.get_input_embeddings()
+    
+
+if __name__ == "__main__":
+    pass
