@@ -16,12 +16,16 @@ class MSDDataCollator:
         Receive list of dict return by the Dataloader
         '''
         labels = []
-        texts = []
+        messages = []
         for sample in features:
             labels.append(sample[1])
-            texts.append(sample[0])
-        
-        image_inputs, video_inputs = process_vision_info(texts)
+            messages.append(sample[0])
+
+        texts = self.processor.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=True
+        )
+
+        image_inputs, video_inputs = process_vision_info(messages)
         inputs = self.processor(
             text=texts,
             images=image_inputs,
@@ -31,3 +35,7 @@ class MSDDataCollator:
         )
 
         return inputs, torch.tensor(labels)
+    
+
+if __name__ == "__main__":
+    pass
