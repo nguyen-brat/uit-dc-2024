@@ -36,8 +36,10 @@ class MSD(Qwen2VLPreTrainedModel):
     ):
         super().__init__(config)
         self.base = Qwen2VLHL.from_pretrained(config.base_model, **config.model_kwargs)
-        self.encoder_layers = MSDCrossEncoderLayer(config)
-        self.classification_layer = nn.Linear(self.config.hidden_size, config.num_class)
+        self.encoder_layers = nn.ModuleList(
+            MSDCrossEncoderLayer(config, layer_idx) for layer_idx in range(config.num_hidden_layers, config.num_hidden_layers + config.extra_layers)
+        )
+        self.classification_layer = nn.Linear(self.config.hidden_size, config.num_labels)
         self.gradient_checkpointing = False
 
     def forward(
@@ -64,7 +66,6 @@ class MSD(Qwen2VLPreTrainedModel):
             position_ids,
             past_key_values,
             inputs_embeds,
-            labels,
             use_cache,
             output_attentions,
             output_hidden_states,
@@ -74,18 +75,30 @@ class MSD(Qwen2VLPreTrainedModel):
             image_grid_thw,
             video_grid_thw,
             rope_deltas,
-        ).logtis
+        ).logits
 
-        if self.gradient_checkpointing and self.training:
-            seq_logits = self._gradient_checkpointing_func(
-                self.encoder_layers.__call__,
-                seq_logits,
-            )
-        else:
-            seq_logits = self.encoder_layers(seq_logits)
+        for encoder_layer in self.encoder_layers:
+            if self.gradient_checkpointing and self.training:
+                seq_logits = self._gradient_checkpointing_func(
+                    encoder_layer.__call__,
+                    seq_logits,
+                    attention_mask=attention_mask,
+                    position_ids=position_ids,
+                    past_key_values=past_key_values,
+                    output_attentions=output_attentions,
+                )
+            else:
+                seq_logits = encoder_layer(
+                    seq_logits,
+                    attention_mask=attention_mask,
+                    position_ids=position_ids,
+                    past_key_values=past_key_values,
+                    output_attentions=output_attentions,
+                )
 
-        mean_logits = self.masked_mean(seq_logits, attention_mask)
-
+        mean_logits = self.masked_mean(seq_logits, attention_mask, 1)
+        # print("##########")
+        # print(mean_logits.dtype)
         if self.gradient_checkpointing and self.training:
             seq_logits = self._gradient_checkpointing_func(
                 self.classification_layer.__call__,
@@ -96,10 +109,10 @@ class MSD(Qwen2VLPreTrainedModel):
 
         loss = self.compute_loss(logits, labels)
 
-        return dict(logits=logits, loss=loss)
+        return dict(loss=loss, logits=logits)
 
 
-    def masked_mean(tensor, mask, dim):
+    def masked_mean(self, tensor:torch.Tensor, mask, dim):
         """
         Calculate the mean along a specified dimension, considering only masked elements.
         
@@ -111,13 +124,13 @@ class MSD(Qwen2VLPreTrainedModel):
         Returns:
         - torch.Tensor: Mean tensor of shape (batch, dim)
         """
-        mask_expanded = mask.unsqueeze(-1).expand_as(tensor)
-        masked_tensor = tensor * mask_expanded.float()
+        mask_expanded = mask.unsqueeze(-1).expand_as(tensor).to(tensor.dtype)
+        masked_tensor = tensor * mask_expanded
         sum_tensor = torch.sum(masked_tensor, dim=dim)
-        count = torch.sum(mask, dim=dim).unsqueeze(-1).expand_as(sum_tensor)
+        count = torch.sum(mask, dim=dim).unsqueeze(-1).expand_as(sum_tensor).to(tensor.dtype)
         
         # Compute mean (avoiding division by zero)
-        mean = sum_tensor / (count + 1e-9)
+        mean = torch.div(sum_tensor, (count + torch.finfo(tensor.dtype).min))
         
         return mean
     

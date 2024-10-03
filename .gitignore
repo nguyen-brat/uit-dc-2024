@@ -11,3 +11,5 @@ __pycache__/*.pyc
 __pycache__/*.pyo
 __pycache__/
 **/__pycache__/
+
+data

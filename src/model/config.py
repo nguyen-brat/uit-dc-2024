@@ -12,9 +12,11 @@ class MSDConfig(PretrainedConfig):
     def __init__(
         self,
         base_model="Qwen/Qwen2-VL-7B-Instruct",
-        extra_layers=2,
-        num_class=None,
-        model_kwargs=None,
+        extra_layers=1,
+        num_class=5,
+        model_kwargs={
+            "attn_implementation": "flash_attention_2",
+        },
         **kwargs,
     ):
         self.base_model = base_model

@@ -1,7 +1,5 @@
-from src import (
-    train,
-    get_config
-)
+from src import train
+from script.config import get_config
 import argparse
 
 if __name__ == "__main__":

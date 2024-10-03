@@ -1,23 +1,26 @@
 from transformers.models.qwen2_vl.modeling_qwen2_vl import *
-from transformers import LlamaConfig
+from transformers import LlamaConfig, PretrainedConfig
 from transformers.models.llama.modeling_llama import (
     LlamaAttention,
     LlamaFlashAttention2,
     LlamaSdpaAttention,
     LlamaMLP,
     LlamaRMSNorm,
-    LlamaConfig
+    LlamaConfig,
 )
+from transformers import BertForMaskedLM
+from transformers.modeling_attn_mask_utils import AttentionMaskConverter
 from .config import MSDConfig
 
 _CONFIG_FOR_DOC = "Qwen2VLConfig"
 
 class Qwen2VLHL(Qwen2VLPreTrainedModel, GenerationMixin):
+    _tied_weights_keys = ["lm_head.weight"]
 
-    def __init__(self, config):
+    def __init__(self, config:MSDConfig):
         super().__init__(config)
         self.visual = Qwen2VisionTransformerPretrainedModel._from_config(
-            config.vision_config, attn_implementation=config._attn_implementation
+            config.vision_config, attn_implementation=config._attn_implementation# , torch_dtype=torch.bfloat16
         )
         self.model = Qwen2VLModel(config)
         self.vocab_size = config.vocab_size
@@ -213,7 +216,6 @@ class Qwen2VLHL(Qwen2VLPreTrainedModel, GenerationMixin):
         position_ids: Optional[torch.LongTensor] = None,
         past_key_values: Optional[List[torch.FloatTensor]] = None,
         inputs_embeds: Optional[torch.FloatTensor] = None,
-        labels: Optional[torch.LongTensor] = None,
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
@@ -290,11 +292,12 @@ class MSDCrossEncoderLayer(nn.Module):
         self.hidden_size = config.hidden_size
         self.CEConfig = self.merge_configs_from_src(LlamaConfig(), config)
 
-        self.self_attn = LLAMA_ATTENTION_CLASSES[self.CEConfig._attn_implementation](config=self.CEConfig, layer_idx=layer_idx)
+        self.self_attn = LLAMA_ATTENTION_CLASSES[config._attn_implementation](config=self.CEConfig, layer_idx=layer_idx)
+        self.self_attn.is_causal = False
 
         self.mlp = LlamaMLP(self.CEConfig)
-        self.input_layernorm = LlamaRMSNorm(self.CEConfig.hidden_size, eps=self.CEConfig.rms_norm_eps)
-        self.post_attention_layernorm = LlamaRMSNorm(self.CEConfig.hidden_size, eps=self.CEConfig.rms_norm_eps)
+        self.input_layernorm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        self.post_attention_layernorm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
     def forward(
         self,
@@ -309,10 +312,7 @@ class MSDCrossEncoderLayer(nn.Module):
         **kwargs,
     ) -> Tuple[torch.FloatTensor, Optional[Tuple[torch.FloatTensor, torch.FloatTensor]]]:
 
-        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
-        output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
-        )
+        output_attentions = output_attentions if output_attentions is not None else self.CEConfig.output_attentions
 
         if cache_position is None:
             past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
@@ -361,7 +361,7 @@ class MSDCrossEncoderLayer(nn.Module):
             past_key_values: Cache,
             output_attentions: bool,
         ):
-        if self.config._attn_implementation == "flash_attention_2":
+        if self.CEConfig._attn_implementation == "flash_attention_2":
             if attention_mask is not None and 0.0 in attention_mask:
                 return attention_mask
             return None
@@ -369,7 +369,7 @@ class MSDCrossEncoderLayer(nn.Module):
         past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
         using_static_cache = isinstance(past_key_values, StaticCache)
 
-        if self.config._attn_implementation == "sdpa" and not using_static_cache and not output_attentions:
+        if self.CEConfig._attn_implementation == "sdpa" and not using_static_cache and not output_attentions:
             # For cross-attention, we don't need to ignore the causal mask
             return attention_mask
 
@@ -398,7 +398,7 @@ class MSDCrossEncoderLayer(nn.Module):
         )
 
         if (
-            self.config._attn_implementation == "sdpa"
+            self.CEConfig._attn_implementation == "sdpa"
             and attention_mask is not None
             and attention_mask.device.type == "cuda"
             and not output_attentions
@@ -425,38 +425,20 @@ class MSDCrossEncoderLayer(nn.Module):
             return attention_mask
         else:
             # Create a 4D mask filled with the minimum dtype value
-            cross_attention_mask = torch.full(
-                (batch_size, 1, sequence_length, target_length),
-                fill_value=min_dtype,
-                dtype=dtype,
-                device=device
-            )
-            
-            if attention_mask is not None:
-                # If an attention mask is provided, use it to create the cross-attention mask
-                mask_length = attention_mask.shape[-1]
-                expanded_attn_mask = attention_mask[:, None, None, :].expand(-1, 1, sequence_length, -1)
-                cross_attention_mask[:, :, :, :mask_length] = torch.where(
-                    expanded_attn_mask.bool(),
-                    torch.tensor(0.0, dtype=dtype, device=device),
-                    torch.tensor(min_dtype, dtype=dtype, device=device)
-                )
-            else:
-                # If no attention mask is provided, allow full attention
-                cross_attention_mask.fill_(0.0)
-            
-            # Apply cache position
-            cross_attention_mask *= torch.arange(target_length, device=device) > cache_position.reshape(-1, 1)
-            
-        return cross_attention_mask
+            return AttentionMaskConverter._expand_mask(mask=attention_mask, dtype=dtype, tgt_len=target_length).to(device)
     
 
-    def merge_configs_from_src(self, target_config, src_config):
+    def merge_configs_from_src(self, target_config:PretrainedConfig, src_config:PretrainedConfig):
         '''
         Copy value from src config to target config
         '''
         # Keys to ignore even if they exist in both configs
         ignore_keys = {'architectures', 'model_type', 'transformers_version'}
+        _attn_implementation = src_config._attn_implementation
+
+        target_config_class = target_config.__class__
+        target_config = target_config.to_dict()
+        src_config = src_config.to_dict()
 
         # Create a new dictionary to store the merged config
         merged_config = target_config.copy()
@@ -465,8 +447,9 @@ class MSDCrossEncoderLayer(nn.Module):
         for key in target_config.keys():
             if key in src_config and key not in ignore_keys:
                 merged_config[key] = src_config[key]
+        merged_config["_attn_implementation"] = _attn_implementation
 
-        return merged_config
+        return target_config_class.from_dict(merged_config)
     
 
 if __name__ == "__main__":

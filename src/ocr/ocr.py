@@ -16,8 +16,6 @@ from sklearn.cluster import DBSCAN
 from glob import glob
 import os
 from dataclasses import dataclass
-
-from PIL import Image
 import pandas as pd
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -220,14 +218,19 @@ class ImageOCR(OCRHandler):
             image_path,
             n_neighbors=1, # n-neighbor for outlier classify using k-nearest neighbor
             eps=2.8, # eps in dbscan (eps = mean_bbox_text_length * eps)
-            min_samples=2 # min sample parameter used in dbscan
+            min_samples=1 # min sample parameter used in dbscan
     ):
         outputs = self.extract_text(image_path)
+        if len(outputs) == 0:
+            return ""
+        if len(outputs) == 1:
+            return outputs[0][1]
+
         final_output = self.process_ocr_results(outputs, n_neighbors=n_neighbors, eps=eps, min_samples=min_samples, image_path=image_path)
 
         #clean temp file
-        # shutil.rmtree(osp(project_root, "output_tmp"))
-        # shutil.rmtree(osp(project_root, "input_tmp"))
+        shutil.rmtree(osp(project_root, "output_tmp"))
+        shutil.rmtree(osp(project_root, "input_tmp"))
 
         return final_output
     
@@ -277,16 +280,25 @@ class ImageOCR(OCRHandler):
     def extract_text_from_bboxes(self, image_path, bbox):
         if isinstance(image_path, str):
             image = cv2.imread(image_path)
+            width, height = image.shape[:2]
         else:
             img = np.array(image_path.convert('RGB'))
             if len(img.shape) == 2:
                 image = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
             elif len(img.shape) == 3 and img.shape[2] == 3:
                 image = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+            width, height = image.shape[:2]
 
-        # cv2.imshow("image", image)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
+        for i in range(0, 8, 2):
+            # if bbox[i] >  width:
+            #     bbox[i] = width
+            if bbox[i] < 0:
+                bbox[0] = 0
+        for i in range(1, 8, 2):
+            # if bbox[i] > height:
+            #     bbox[i] = height
+            if bbox[i] < 0:
+                bbox[i] = 0
 
         pts = [(bbox[0], bbox[1]), (bbox[2], bbox[3]), (bbox[4], bbox[5]), (bbox[6], bbox[7])]
         mask = np.zeros_like(image)
@@ -309,6 +321,6 @@ if __name__ == "__main__":
         device = 'cuda:0',
         script_path='script/text_detection.sh',
     )
-    image = Image.open('test2.png')
-    output = reader.predict(image)
+    image = Image.open('data/warmup-images/547be8e138616ddc9324f870c3889310c3779b1bb576224b0919149299402c89.jpg')
+    output = reader.predict(image, min_samples=1)
     print(output)
