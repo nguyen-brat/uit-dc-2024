@@ -1,4 +1,4 @@
-from src import train
+from src.train import train
 from script.config import get_config
 import argparse
 

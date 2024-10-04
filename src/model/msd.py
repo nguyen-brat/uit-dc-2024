@@ -35,8 +35,9 @@ class MSD(Qwen2VLPreTrainedModel):
         self.encoder_layers = nn.ModuleList(
             MSDCrossEncoderLayer(config, layer_idx) for layer_idx in range(config.num_hidden_layers, config.num_hidden_layers + config.extra_layers)
         )
-        self.classification_layer = nn.Linear(self.config.hidden_size, config.num_labels)
+        self.classification_layer = nn.Linear(self.config.hidden_size, config.num_class)
         self.gradient_checkpointing = False
+        self.test_config = config
 
     def forward(
         self,
@@ -96,7 +97,7 @@ class MSD(Qwen2VLPreTrainedModel):
         # print("##########")
         # print(mean_logits.dtype)
         if self.gradient_checkpointing and self.training:
-            seq_logits = self._gradient_checkpointing_func(
+            logits = self._gradient_checkpointing_func(
                 self.classification_layer.__call__,
                 mean_logits,
             )

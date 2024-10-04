@@ -5,7 +5,9 @@ data_args:
   val_data:
     annotate_path: "data/ocr_llm.json"
     image_path: "data/warmup-images"
-  cache_dir: "./data_cache"
+  # min_pixels: 200704
+  # max_pixels: 1003520
+  # cache_dir: "./data_cache"
 
 training_args:
   bf16: True
@@ -18,12 +20,13 @@ training_args:
   gradient_checkpointing_kwargs: {"use_reentrant": False}
   save_safetensors: true
   torch_compile_backend: "cudagraphs"
+  use_liger_kernel: true
   quantization: 0 # 0 mean not use quantization 4 mean 4 bit 8 mean 8 bit
   output_dir: "dump_shit"
   overwrite_output_dir: true
-  num_train_epochs: 6
-  per_device_train_batch_size: 8
-  per_device_eval_batch_size: 8
+  num_train_epochs: 4
+  per_device_train_batch_size: 2
+  per_device_eval_batch_size: 2
   gradient_accumulation_steps: 8
   do_train: true
   do_eval: True
@@ -39,12 +42,12 @@ training_args:
 
 model_args:
   base_model: "Qwen/Qwen2-VL-7B-Instruct"
-  extra_layers: 2
-  num_class: 1
+  extra_layers: 1
+  num_class: 4
   model_kwargs:
       token: "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"
       use_cache: False
-      attn_implementation: "sdpa" # flash_attention_2, sdpa, eager
+      attn_implementation: "flash_attention_2" # flash_attention_2, sdpa, eager
 
 tokenizer_args:
   cache_dir: "./tokenizer_data"

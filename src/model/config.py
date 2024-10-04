@@ -13,7 +13,7 @@ class MSDConfig(PretrainedConfig):
         self,
         base_model="Qwen/Qwen2-VL-7B-Instruct",
         extra_layers=1,
-        num_class=5,
+        num_class=4,
         model_kwargs={
             "attn_implementation": "sdpa",
         },
@@ -21,7 +21,7 @@ class MSDConfig(PretrainedConfig):
     ):
         self.base_model = base_model
         self.extra_layers = extra_layers
-        self.num_labels = num_class
+        self.num_class = num_class
         self.model_kwargs = model_kwargs
         self.based_config = AutoConfig.from_pretrained(base_model)
         self.update(self.based_config.to_dict())

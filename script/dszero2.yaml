@@ -2,7 +2,7 @@
 compute_environment: LOCAL_MACHINE
 debug: true
 deepspeed_config:
-  deepspeed_config_file: "src/config/zero2.json"
+  deepspeed_config_file: "script/zero2.json"
 distributed_type: DEEPSPEED
 downcast_bf16: 'no'
 machine_rank: 0

@@ -15,3 +15,4 @@ qwen_vl_utils
 scikit-learn==1.5.2
 datasets
 easydict
+wandb

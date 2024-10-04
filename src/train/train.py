@@ -46,7 +46,7 @@ def get_all_linear_layers(model):
     for name, module in model.named_modules():
         # match with all linear classes.
         if isinstance(module, linear_classes):
-            names = name.rsplit(".", 1)[-1]  # get the base name
+            names = name#.rsplit(".", 1)[-1]  # get the base name
             linear_module_names.add(names)
 
     return list(linear_module_names)
@@ -84,7 +84,7 @@ def train(config):
         set_seed_all(training_args.seed)
 
     ################### Load data
-    processor = AutoProcessor.from_pretrained()
+    processor = AutoProcessor.from_pretrained(model_args.base_model, )
     train_data_path = data_args.pop("train_data", None)
     if getattr(data_args, "val_data", None):
         val_data_path = data_args.pop("val_data", None)
@@ -101,7 +101,7 @@ def train(config):
     collator = MSDDataCollator(processor, padding=True)
 
     ################### Load model
-    if model_args.embedder_based or model_args.thinker_based:
+    if model_args.base_model:
         quantization_config=None
         if training_args.quantization == 4:
             quantization_4bit_config = {
@@ -151,6 +151,9 @@ def train(config):
             target_modules=[module for module in target_modules if module not in lora_args.modules_to_save],
             **lora_args
         )
+        # print(target_modules)
+        if lora_args.modules_to_save == []:
+            lora_args.pop("modules_to_save", None)
         model = get_peft_model(model, lora_config)
 
     # ############################################################ TRAINER
