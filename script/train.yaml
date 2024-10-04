@@ -38,21 +38,17 @@ training_args:
   metric_for_best_model: "eval_loss"
 
 model_args:
-  embedder_based: "HuggingFaceTB/SmolLM-135M"
-  thinker_based: "HuggingFaceTB/SmolLM-135M"
-  EoTR_based: null
+  base_model: "Qwen/Qwen2-VL-7B-Instruct"
+  extra_layers: 2
+  num_class: 1
   model_kwargs:
-    token: "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"
-    use_cache: False
-    attn_implementation: "sdpa" # flash_attention_2, sdpa, eager
+      token: "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"
+      use_cache: False
+      attn_implementation: "sdpa" # flash_attention_2, sdpa, eager
 
 tokenizer_args:
-  pretrained_model_name_or_path: "HuggingFaceTB/SmolLM-135M"
   cache_dir: "./tokenizer_data"
   token: "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"
-  trust_remote_code: true
-  padding_side: "right"
-  eot_token: "<EOT>"
 
 lora_args:
   use_dora: False
@@ -74,4 +70,4 @@ callback_args:
 huggingface_args:
   push_to_hub: false
   hub_private_repo: true
-  hub_model_id: "Thought_generation_model_demo"
+  hub_model_id: "UIT-DS"

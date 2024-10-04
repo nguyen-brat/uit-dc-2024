@@ -3,7 +3,8 @@ from torch.utils.data import Dataset
 import json
 from os.path import join as osp
 from .collator import MSDDataCollator
-from transformers import Qwen2VLProcessor
+from qwen_vl_utils import process_vision_info
+from transformers import Qwen2VLProcessor, AutoProcessor
 
 
 LABELS_MAP = {
@@ -44,6 +45,9 @@ class MSDDataloader(Dataset):
         '''
         Return message and a labels
         '''
+        if idx in self.cached_data_dict:
+            return self.cached_data_dict[idx]
+
         message = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {
@@ -56,6 +60,8 @@ class MSDDataloader(Dataset):
         ]
 
         label = LABELS_MAP[self.annotate[idx]["label"]]
+
+        self.cached_data_dict[idx] = (message, label)
 
         return message, label
     

@@ -8,11 +8,10 @@ from transformers.models.llama.modeling_llama import (
     LlamaRMSNorm,
     LlamaConfig,
 )
-from transformers import BertForMaskedLM
+from transformers import BertForMaskedLM, LlavaNextForConditionalGeneration
 from transformers.modeling_attn_mask_utils import AttentionMaskConverter
 from .config import MSDConfig
 
-_CONFIG_FOR_DOC = "Qwen2VLConfig"
 
 class Qwen2VLHL(Qwen2VLPreTrainedModel, GenerationMixin):
     _tied_weights_keys = ["lm_head.weight"]
