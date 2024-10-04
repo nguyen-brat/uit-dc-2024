@@ -15,7 +15,7 @@ class MSDConfig(PretrainedConfig):
         extra_layers=1,
         num_class=5,
         model_kwargs={
-            "attn_implementation": "flash_attention_2",
+            "attn_implementation": "sdpa",
         },
         **kwargs,
     ):

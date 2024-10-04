@@ -3,8 +3,7 @@ from torch.utils.data import Dataset
 import json
 from os.path import join as osp
 from .collator import MSDDataCollator
-from qwen_vl_utils import process_vision_info
-from transformers import Qwen2VLProcessor, AutoProcessor
+from transformers import Qwen2VLProcessor
 
 
 LABELS_MAP = {
@@ -35,6 +34,7 @@ class MSDDataloader(Dataset):
         with open(annotate_path, "r") as f:
             self.annotate = list(json.load(f).values())
         self.image_path = image_path
+        self.cached_data_dict = {}
 
 
     def __len__(self):

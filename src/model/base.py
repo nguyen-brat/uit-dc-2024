@@ -8,7 +8,15 @@ from transformers.models.llama.modeling_llama import (
     LlamaRMSNorm,
     LlamaConfig,
 )
-from transformers import BertForMaskedLM, LlavaNextForConditionalGeneration
+# from transformers.models.qwen2_vl.modeling_qwen2_vl import (
+#     Qwen2VLAttention,
+#     Qwen2VLFlashAttention2,
+#     Qwen2VLSdpaAttention,
+#     Qwen2MLP,
+#     Qwen2RMSNorm,
+#     Qwen2VLConfig,
+# )
+# from transformers import BertForMaskedLM, LlavaNextForConditionalGeneration
 from transformers.modeling_attn_mask_utils import AttentionMaskConverter
 from .config import MSDConfig
 
@@ -367,10 +375,6 @@ class MSDCrossEncoderLayer(nn.Module):
 
         past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
         using_static_cache = isinstance(past_key_values, StaticCache)
-
-        if self.CEConfig._attn_implementation == "sdpa" and not using_static_cache and not output_attentions:
-            # For cross-attention, we don't need to ignore the causal mask
-            return attention_mask
 
         dtype, device = input_tensor.dtype, input_tensor.device
         min_dtype = torch.finfo(dtype).min

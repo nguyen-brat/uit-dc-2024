@@ -25,10 +25,6 @@ from transformers import BertModel
 
 class MSD(Qwen2VLPreTrainedModel):
     config_class = MSDConfig
-    supports_gradient_checkpointing = True
-    _supports_flash_attn_2 = True
-    _supports_sdpa = True
-    base_model_prefix = "model"
 
     def __init__(
             self,

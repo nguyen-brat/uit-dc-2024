@@ -34,7 +34,9 @@ class MSDDataCollator:
             return_tensors='pt',
         )
 
-        return inputs, torch.tensor(labels)
+        inputs["labels"] = torch.tensor(labels)
+
+        return inputs
     
 
 if __name__ == "__main__":
