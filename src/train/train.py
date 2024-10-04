@@ -89,12 +89,12 @@ def train(config):
     if getattr(data_args, "val_data", None):
         val_data_path = data_args.pop("val_data", None)
         val_dataloader = MSDDataloader(
-            data_files=val_data_path,
+            **val_data_path,
             **data_args,
         )
 
     train_dataloader = MSDDataloader(
-        data_files=train_data_path,
+        **train_data_path,
         **data_args,
     )
 
