@@ -1,11 +1,6 @@
-from transformers import (
-    PreTrainedModel,
-    AutoConfig,
-    LlamaForCausalLM,
-)
 from transformers.models.qwen2_vl.modeling_qwen2_vl import Qwen2VLPreTrainedModel
-from qwen_vl_utils import process_vision_info
 from torch import nn
+from torch.nn import CrossEntropyLoss
 import torch
 from typing import Optional, List
 import functools
@@ -14,13 +9,6 @@ from torch.utils.checkpoint import checkpoint
 from .config import MSDConfig
 from .base import Qwen2VLHL, MSDCrossEncoderLayer
 
-from transformers import BertModel
-
-# LLAMA_ATTENTION_CLASSES = {
-#     "eager": MSDAttention,
-#     "flash_attention_2": MSDFlashAttention2,
-#     "sdpa": MSDSdpaAttention,
-# }
 
 
 class MSD(Qwen2VLPreTrainedModel):
@@ -31,7 +19,7 @@ class MSD(Qwen2VLPreTrainedModel):
             config:MSDConfig,
     ):
         super().__init__(config)
-        self.base = Qwen2VLHL.from_pretrained(config.base_model, **config.model_kwargs)
+        self.model = Qwen2VLHL.from_pretrained(config.base_model, **config.model_kwargs)
         self.encoder_layers = nn.ModuleList(
             MSDCrossEncoderLayer(config, layer_idx) for layer_idx in range(config.num_hidden_layers, config.num_hidden_layers + config.extra_layers)
         )
@@ -57,7 +45,7 @@ class MSD(Qwen2VLPreTrainedModel):
         video_grid_thw: Optional[torch.LongTensor] = None,
         rope_deltas: Optional[torch.LongTensor] = None,
     ):
-        seq_logits = self.base(
+        seq_logits = self.model(
             input_ids,
             attention_mask,
             position_ids,
@@ -133,22 +121,22 @@ class MSD(Qwen2VLPreTrainedModel):
     
 
     def compute_loss(self, logits, labels):
-        loss_fc = nn.CrossEntropyLoss()
+        loss_fc = CrossEntropyLoss()
         loss = loss_fc(logits, labels)
 
         return loss
 
 
     def freeze_base(self):
-        for p in self.base_model.parameters():
+        for p in self.model.parameters():
             p.requires_grad_(False)
 
 
     def freeze_vision(self):
-        if hasattr(self.base,'visual'):
-            self.base.visual.requires_grad_(False)
-            if hasattr(self.base.visual,'merger'):
-                self.base.visual.merger.requires_grad_(True)
+        if hasattr(self.model,'visual'):
+            self.model.visual.requires_grad_(False)
+            if hasattr(self.model.visual,'merger'):
+                self.model.visual.merger.requires_grad_(True)
 
 
     def gradient_checkpointing_enable(self, gradient_checkpointing_kwargs=None):
@@ -156,12 +144,12 @@ class MSD(Qwen2VLPreTrainedModel):
         if gradient_checkpointing_kwargs is None:
             gradient_checkpointing_kwargs = {"use_reentrant": False}
         self._gradient_checkpointing_func = functools.partial(checkpoint, **gradient_checkpointing_kwargs)
-        self.base.gradient_checkpointing_enable(gradient_checkpointing_kwargs)
+        self.model.gradient_checkpointing_enable(gradient_checkpointing_kwargs)
 
 
     def gradient_checkpointing_disable(self):
         self.gradient_checkpointing = False
-        self.base.gradient_checkpointing_disable()
+        self.model.gradient_checkpointing_disable()
 
 
     def _set_gradient_checkpointing(self, module, value=False):
@@ -176,7 +164,7 @@ class MSD(Qwen2VLPreTrainedModel):
         Returns:
             `nn.Module`: A torch module mapping vocabulary to hidden states.
         """
-        return self.base.get_input_embeddings()
+        return self.model.get_input_embeddings()
     
 
 if __name__ == "__main__":

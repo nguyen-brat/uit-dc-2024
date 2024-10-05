@@ -23,6 +23,5 @@ class MSDConfig(PretrainedConfig):
         self.extra_layers = extra_layers
         self.num_class = num_class
         self.model_kwargs = model_kwargs
-        self.based_config = AutoConfig.from_pretrained(base_model)
-        self.update(self.based_config.to_dict())
+        self.update(AutoConfig.from_pretrained(base_model).to_dict())
         super().__init__(**kwargs)

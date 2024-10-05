@@ -20,7 +20,7 @@ from datasets import Dataset
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 
 from ..dataloader import MSDDataloader, MSDDataCollator
-from ..model import MSD, MSDConfig
+from ..model import MSD, MSDConfig, apply_liger_kernel_to_msd
 
 
 def set_seed_all(seed:int):
@@ -131,6 +131,9 @@ def train(config):
             )
         model = MSD(config)
         model.freeze_base()
+        ################ *****************************************************
+        if training_args.pop("use_liger_kernel", None):
+            apply_liger_kernel_to_msd(fused_linear_cross_entropy=False, model=model)
         if training_args.quantization:
             model = prepare_model_for_kbit_training(model)
         training_args.pop("quantization", None)
