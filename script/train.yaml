@@ -1,7 +1,7 @@
 data_args:
   train_data:
-    annotate_path: "data/ocr_llm.json"
-    image_path: "data/warmup-images"
+    annotate_path: "data/public_train/ocr_llm.json"
+    image_path: "data/public_train/train-images"
   val_data:
     annotate_path: "data/ocr_llm.json"
     image_path: "data/warmup-images"
@@ -28,6 +28,7 @@ training_args:
   per_device_train_batch_size: 1
   per_device_eval_batch_size: 1
   gradient_accumulation_steps: 8
+  dataloader_num_workers: 36
   do_train: true
   do_eval: True
   eval_strategy: "epoch" # Evaluation is done (and logged) every eval_steps
@@ -74,4 +75,4 @@ callback_args:
 huggingface_args:
   push_to_hub: false
   hub_private_repo: true
-  hub_model_id: "UIT-DS"
+  hub_model_id: "qwen2vl7b-cls"

@@ -9,6 +9,7 @@ from transformers import AutoModel, AutoTokenizer
 IMAGENET_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_STD = (0.229, 0.224, 0.225)
 
+
 def build_transform(input_size):
     MEAN, STD = IMAGENET_MEAN, IMAGENET_STD
     transform = T.Compose([
@@ -18,6 +19,7 @@ def build_transform(input_size):
         T.Normalize(mean=MEAN, std=STD)
     ])
     return transform
+
 
 def find_closest_aspect_ratio(aspect_ratio, target_ratios, width, height, image_size):
     best_ratio_diff = float('inf')
@@ -33,6 +35,7 @@ def find_closest_aspect_ratio(aspect_ratio, target_ratios, width, height, image_
             if area > 0.5 * image_size * image_size * ratio[0] * ratio[1]:
                 best_ratio = ratio
     return best_ratio
+
 
 def dynamic_preprocess(image, min_num=1, max_num=12, image_size=448, use_thumbnail=False):
     orig_width, orig_height = image.size
@@ -103,14 +106,17 @@ parent_dir = os.path.abspath(os.path.join(script_dir, '..'))
 grand_dir = os.path.abspath(os.path.join(parent_dir, '..'))
 sys.path.extend([parent_dir, grand_dir])
 
-with open(r'data/vimmsd-warmup.json', "r", encoding='utf-8') as f:
+annotation_path = "data/public_train/vimmsd-train_02.json"
+image_folder_path = "data/public_train/train-images"
+output_path = "data/public_train/ocr_llm_02.json"
+
+with open(annotation_path, "r", encoding='utf-8') as f:
     data = json.load(f)
 
 for key, value in tqdm(data.items()):
-    image_path = osp("data/warmup-images", value["image"])
+    image_path = osp(image_folder_path, value["image"])
     pixel_values = load_image(image_path, max_num=6).to(torch.bfloat16).to(model.device)
     response, history = model.chat(tokenizer, pixel_values, question, generation_config, history=None, return_history=True)
     data[key]["ocr"] = response
-
-with open(r"data/ocr_llm.json", "w", encoding='utf-8') as f:
-    json.dump(data, f, indent=4, ensure_ascii=False)
+    with open(output_path, "w", encoding='utf-8') as f:
+        json.dump(data, f, indent=4, ensure_ascii=False)

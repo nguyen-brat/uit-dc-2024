@@ -167,5 +167,13 @@ class MSD(Qwen2VLPreTrainedModel):
         return self.model.get_input_embeddings()
     
 
+    @torch.no_grad()
+    def generate(self, sample):
+        '''
+        Generate output for evaluation
+        '''
+        pass
+    
+
 if __name__ == "__main__":
     pass
