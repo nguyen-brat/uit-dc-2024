@@ -1,10 +1,10 @@
 data_args:
   train_data:
-    annotate_path: "data/public_train/ocr_llm.json"
-    image_path: "data/public_train/train-images"
+    annotate_path: "data/warn_up/ocr_llm.json"
+    image_path: "data/warn_up/warmup-images"
   val_data:
-    annotate_path: "data/ocr_llm.json"
-    image_path: "data/warmup-images"
+    annotate_path: "data/warn_up/ocr_llm.json"
+    image_path: "data/warn_up/warmup-images"
   # min_pixels: 200704
   # max_pixels: 1003520
   # cache_dir: "./data_cache"
@@ -24,7 +24,7 @@ training_args:
   quantization: 0 # 0 mean not use quantization 4 mean 4 bit 8 mean 8 bit
   output_dir: "dump_shit"
   overwrite_output_dir: true
-  num_train_epochs: 4
+  num_train_epochs: 2
   per_device_train_batch_size: 1
   per_device_eval_batch_size: 1
   gradient_accumulation_steps: 8
@@ -42,7 +42,7 @@ training_args:
   metric_for_best_model: "eval_loss"
 
 model_args:
-  base_model: "Qwen/Qwen2-VL-7B-Instruct"
+  base_model: "Qwen/Qwen2-VL-2B-Instruct"
   extra_layers: 0
   num_class: 4
   model_kwargs:

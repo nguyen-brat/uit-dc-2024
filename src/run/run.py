@@ -11,7 +11,7 @@ def inference(args, model):
         data = json.load(f)
 
     for id, value in data.items():
-        caterory = model.generate(value)
+        caterory = model.predict(value)
         result["results"][id] = caterory
 
     with open(args.output_dir, "w", encoding="utf") as f:
@@ -26,5 +26,5 @@ if __name__ == "__main__":
     parser.add_argument("--phase", type=str, default="dev")
     args = parser.parse_args()
 
-    model = MSD.from_pretrained(args.model_path, torch_type="bf16", device="auto")
+    model = MSD.from_pretrained(args.model_path, torch_type="bf16", device_map="auto").eval()
     inference(args, model)

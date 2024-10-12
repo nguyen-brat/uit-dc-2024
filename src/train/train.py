@@ -84,7 +84,13 @@ def train(config):
         set_seed_all(training_args.seed)
 
     ################### Load data
-    processor = AutoProcessor.from_pretrained(model_args.base_model, )
+    min_pixels=data_args.pop("min_pixels", None)
+    max_pixels=data_args.pop("max_pixels", None)
+    processor = AutoProcessor.from_pretrained(
+        model_args.base_model,
+        min_pixels=min_pixels,
+        max_pixels=max_pixels,
+    )
     train_data_path = data_args.pop("train_data", None)
     if getattr(data_args, "val_data", None):
         val_data_path = data_args.pop("val_data", None)
@@ -122,6 +128,8 @@ def train(config):
             config = MSDConfig(
                 quantization_config = quantization_config,
                 torch_dtype=compute_dtype,
+                min_pixels=min_pixels,
+                max_pixels=max_pixels,
                 **model_args
             )
         else:
@@ -187,5 +195,8 @@ def train(config):
         checkpoint = training_args.resume_from_checkpoint
     trainer.train(resume_from_checkpoint=checkpoint)
 
-    trainer.save_state()
-    trainer.save_model()
+    if trainer.is_local_process_zero:
+        trainer.save_state()
+        trainer.save_model()
+
+    from peft.utils import get_peft_model_state_dict

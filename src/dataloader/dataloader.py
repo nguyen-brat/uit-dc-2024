@@ -3,6 +3,7 @@ from torch.utils.data import Dataset
 import json
 from os.path import join as osp
 from .collator import MSDDataCollator
+from .prompt import SYSTEM_PROMPT, USER_PROMPT
 from transformers import Qwen2VLProcessor
 
 
@@ -13,21 +14,6 @@ LABELS_MAP = {
     "text-sarcasm": 3,
 }
 
-SYSTEM_PROMPT = "You are a helpful assistant. Imagine you are a content moderator on facebook."
-
-USER_PROMPT = """You need to classify which post is multi-sarcasm, non-sarcasm, image-sarcasm, text-sarcasm.\
-Sarcasm is any sample that satisfy any condition below:
-1. Employs irony by saying the opposite of what is meant, especially to
-mock or deride.
-2. Contains a mismatch between the text and the image that suggests
-sarcasm through contradiction or exaggeration.
-3. Uses hyperbole to overstate or understate reality in a way that is
-clearly not meant to be taken literally.
-4. Incorporates sarcastic hashtags, emojis, or punctuation, which are
-commonly used to convey sarcasm online.
-
-The post you need to classify contain the image above. The caption of the post is {caption}. \
-Text the image is: {ocr}."""
 
 class MSDDataloader(Dataset):
     def __init__(self, annotate_path, image_path):

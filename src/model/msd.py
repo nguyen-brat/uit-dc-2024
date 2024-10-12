@@ -1,13 +1,17 @@
 from transformers.models.qwen2_vl.modeling_qwen2_vl import Qwen2VLPreTrainedModel
+from transformers import AutoProcessor
 from torch import nn
 from torch.nn import CrossEntropyLoss
 import torch
 from typing import Optional, List
 import functools
+from os.path import join as osp
 from torch.utils.checkpoint import checkpoint
 
 from .config import MSDConfig
 from .base import Qwen2VLHL, MSDCrossEncoderLayer
+from ..dataloader.prompt import SYSTEM_PROMPT, USER_PROMPT
+from qwen_vl_utils import process_vision_info
 
 
 
@@ -19,6 +23,11 @@ class MSD(Qwen2VLPreTrainedModel):
             config:MSDConfig,
     ):
         super().__init__(config)
+        self.processor = AutoProcessor.from_pretrained(
+            config.base_model,
+            min_pixels=config.min_pixels,
+            max_pixels=config.max_pixels
+        )
         self.model = Qwen2VLHL.from_pretrained(config.base_model, **config.model_kwargs)
         self.encoder_layers = nn.ModuleList(
             MSDCrossEncoderLayer(config, layer_idx) for layer_idx in range(config.num_hidden_layers, config.num_hidden_layers + config.extra_layers)
@@ -168,12 +177,44 @@ class MSD(Qwen2VLPreTrainedModel):
     
 
     @torch.no_grad()
-    def generate(self, sample):
+    def predict(self, sample, image_path):
         '''
-        Generate output for evaluation
+        predict output for evaluation
         '''
-        pass
-    
+        LABELS_MAP = {
+            0: "multi-sarcasm",
+            1: "not-sarcasm",
+            2: "image-sarcasm",
+            3: "text-sarcasm",
+        }
+
+        message = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image", "image": osp(image_path, sample["image"])},
+                    {"type": "text", "text": USER_PROMPT.format(caption=sample["caption"], ocr=sample["ocr"])}
+                ]
+            }
+        ]
+        text = self.processor.apply_chat_template(
+            message, tokenize=False, add_generation_prompt=True
+        )
+        image_inputs, video_inputs = process_vision_info(message)
+        inputs = self.processor(
+            text=[text],
+            images=image_inputs,
+            videos=video_inputs,
+            padding=True,
+            return_tensors="pt",
+        ).to(self.device)
+
+        output = self.__call__(**inputs)
+
+        return LABELS_MAP[output]
+
+
 
 if __name__ == "__main__":
     pass

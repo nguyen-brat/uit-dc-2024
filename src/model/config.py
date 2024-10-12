@@ -14,6 +14,8 @@ class MSDConfig(PretrainedConfig):
         base_model="Qwen/Qwen2-VL-7B-Instruct",
         extra_layers=1,
         num_class=4,
+        min_pixels=None,
+        max_pixels=None,
         model_kwargs={
             "attn_implementation": "sdpa",
         },
@@ -23,5 +25,7 @@ class MSDConfig(PretrainedConfig):
         self.extra_layers = extra_layers
         self.num_class = num_class
         self.model_kwargs = model_kwargs
+        self.min_pixels = min_pixels
+        self.max_pixels = max_pixels
         self.update(AutoConfig.from_pretrained(base_model).to_dict())
         super().__init__(**kwargs)
