@@ -23,11 +23,14 @@ class MSD(Qwen2VLPreTrainedModel):
             config:MSDConfig,
     ):
         super().__init__(config)
-        self.processor = AutoProcessor.from_pretrained(
-            config.base_model,
-            min_pixels=config.min_pixels,
-            max_pixels=config.max_pixels
-        )
+        if config.min_pixels and config.max_pixels:
+            self.processor = AutoProcessor.from_pretrained(
+                config.base_model,
+                min_pixels=config.min_pixels,
+                max_pixels=config.max_pixels
+            )
+        else:
+            self.processor = AutoProcessor.from_pretrained(config.base_model,)
         self.model = Qwen2VLHL.from_pretrained(config.base_model, **config.model_kwargs)
         self.encoder_layers = nn.ModuleList(
             MSDCrossEncoderLayer(config, layer_idx) for layer_idx in range(config.num_hidden_layers, config.num_hidden_layers + config.extra_layers)
@@ -118,10 +121,10 @@ class MSD(Qwen2VLPreTrainedModel):
         Returns:
         - torch.Tensor: Mean tensor of shape (batch, dim)
         """
-        mask_expanded = mask.unsqueeze(-1).expand_as(tensor).to(tensor.dtype)
+        mask_expanded = mask.unsqueeze(-1).expand_as(tensor).to(tensor.dtype).to(tensor.device)
         masked_tensor = tensor * mask_expanded
         sum_tensor = torch.sum(masked_tensor, dim=dim)
-        count = torch.sum(mask, dim=dim).unsqueeze(-1).expand_as(sum_tensor).to(tensor.dtype)
+        count = torch.sum(mask, dim=dim).unsqueeze(-1).expand_as(sum_tensor).to(tensor.dtype).to(tensor.device)
         
         # Compute mean (avoiding division by zero)
         mean = torch.div(sum_tensor, (count + torch.finfo(tensor.dtype).min))
@@ -210,9 +213,22 @@ class MSD(Qwen2VLPreTrainedModel):
             return_tensors="pt",
         ).to(self.device)
 
-        output = self.__call__(**inputs)
+        # output = self.__call__(**inputs)
 
-        return LABELS_MAP[output]
+        seq_logits = self.model(**inputs).logits
+        for encoder_layer in self.encoder_layers:
+            seq_logits = encoder_layer(
+                seq_logits,
+                attention_mask=inputs["attention_mask"],
+                position_ids=inputs.pop("position_ids", None),
+                past_key_values=inputs.pop("past_key_values", None),
+                output_attentions=inputs.pop("output_attentions", None),
+            )
+
+        mean_logits = self.masked_mean(seq_logits, inputs["attention_mask"], 1)
+        logits = self.classification_layer(mean_logits).cpu()[0]
+
+        return LABELS_MAP[torch.argmax(logits, dim=-1).item()]
 
 
 

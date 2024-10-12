@@ -198,5 +198,3 @@ def train(config):
     if trainer.is_local_process_zero:
         trainer.save_state()
         trainer.save_model()
-
-    from peft.utils import get_peft_model_state_dict

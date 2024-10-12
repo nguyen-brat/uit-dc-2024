@@ -1,10 +1,10 @@
-export CUDA_DEVICE_MAX_CONNECTIONS=1
-export WANDB_PROJECT="DS-DC"
-#export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:true
-#export HF_TOKEN="" put your HF_TOKEN HERE
 DIR=`pwd`
-DEEPSPEED2_PATH=${DIR}/script/dszero2.yaml
-DEEPSPEED3_PATH=${DIR}/script/dszero3.yaml
-TRAIN_CONFIG_PATH=${DIR}/script/train.yaml
+model_path=${DIR}/dump_shit
+annotation_path=${DIR}/data/warn_up/ocr_llm.json
+image_path=${DIR}/data/warn_up/warmup-images
+output_dir=${DIR}/dump_output.json
 
-accelerate launch --config_file $DEEPSPEED2_PATH ${DIR}/run.py --config_path $TRAIN_CONFIG_PATH
+python ${DIR}/run.py --model_path $model_path \
+                     --annotation_path $annotation_path \
+                     --image_path $image_path \
+                     --output_dir $output_dir
