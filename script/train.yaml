@@ -10,6 +10,7 @@ data_args:
   # cache_dir: "./data_cache"
 
 training_args:
+  freeze_base: True
   bf16: True
   use_lora: False
   learning_rate: 8e-5
@@ -18,7 +19,7 @@ training_args:
   weight_decay: 0.0
   gradient_checkpointing: true
   gradient_checkpointing_kwargs: {"use_reentrant": False}
-  save_safetensors: true
+  save_safetensors: False
   torch_compile_backend: "cudagraphs"
   use_liger_kernel: False # BUG if True
   quantization: 0 # 0 mean not use quantization 4 mean 4 bit 8 mean 8 bit
@@ -43,7 +44,7 @@ training_args:
 
 model_args:
   base_model: "Qwen/Qwen2-VL-2B-Instruct"
-  extra_layers: 0
+  extra_layers: 2
   num_class: 4
   model_kwargs:
       token: "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"
@@ -62,7 +63,7 @@ lora_args:
   lora_dropout: 0.05
   bias: "none"
   target_modules: "all-linear"
-  modules_to_save: []
+  modules_to_save: ["encoder_layers.*", "classification_layer"]
 
 wandb_args:
   run_name: "freeze hill" # "My goodfellas"

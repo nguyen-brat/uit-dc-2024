@@ -14,7 +14,6 @@ from ..dataloader.prompt import SYSTEM_PROMPT, USER_PROMPT
 from qwen_vl_utils import process_vision_info
 
 
-
 class MSD(Qwen2VLPreTrainedModel):
     config_class = MSDConfig
 
@@ -37,7 +36,6 @@ class MSD(Qwen2VLPreTrainedModel):
         )
         self.classification_layer = nn.Linear(self.config.hidden_size, config.num_class)
         self.gradient_checkpointing = False
-        self.test_config = config
 
     def forward(
         self,

@@ -2,6 +2,7 @@ import torch
 import torch
 import numpy as np
 import random
+import re
 
 from torch.utils.data import DataLoader
 from qwen_vl_utils import process_vision_info
@@ -16,7 +17,6 @@ from transformers import (
     Trainer,
     set_seed,
 )
-from datasets import Dataset
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 
 from ..dataloader import MSDDataloader, MSDDataCollator
@@ -41,13 +41,12 @@ def get_all_linear_layers(model):
     """
 
     linear_classes = (torch.nn.Linear, torch.nn.Embedding)
-
     linear_module_names = set()
+
     for name, module in model.named_modules():
         # match with all linear classes.
         if isinstance(module, linear_classes):
-            names = name#.rsplit(".", 1)[-1]  # get the base name
-            linear_module_names.add(names)
+            linear_module_names.add(name)
 
     return list(linear_module_names)
 
@@ -86,11 +85,14 @@ def train(config):
     ################### Load data
     min_pixels=data_args.pop("min_pixels", None)
     max_pixels=data_args.pop("max_pixels", None)
-    processor = AutoProcessor.from_pretrained(
-        model_args.base_model,
-        min_pixels=min_pixels,
-        max_pixels=max_pixels,
-    )
+    if min_pixels and max_pixels:
+        processor = AutoProcessor.from_pretrained(
+            model_args.base_model,
+            min_pixels=min_pixels,
+            max_pixels=max_pixels,
+        )
+    else:
+        processor = AutoProcessor.from_pretrained(model_args.base_model)
     train_data_path = data_args.pop("train_data", None)
     if getattr(data_args, "val_data", None):
         val_data_path = data_args.pop("val_data", None)
@@ -138,7 +140,9 @@ def train(config):
                 **model_args
             )
         model = MSD(config)
-        model.freeze_base()
+        model.freeze_vision()
+        if training_args.pop("freeze_base", None):
+            model.freeze_base()
         ################ *****************************************************
         if training_args.pop("use_liger_kernel", None):
             apply_liger_kernel_to_msd(fused_linear_cross_entropy=False, model=model)
@@ -158,8 +162,11 @@ def train(config):
         target_modules = lora_args.pop("target_modules")
         if target_modules == "all-linear":
             target_modules = get_all_linear_layers(model)
+        modules_to_save = [string for string in target_modules if any(re.match(pattern, string) for pattern in lora_args.pop("modules_to_save", []))]
+        
         lora_config = LoraConfig(
-            target_modules=[module for module in target_modules if module not in lora_args.modules_to_save],
+            target_modules=[module for module in target_modules if module not in modules_to_save],
+            modules_to_save=modules_to_save,
             **lora_args
         )
         # print(target_modules)
