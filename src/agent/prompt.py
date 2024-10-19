@@ -107,7 +107,7 @@ from PIL import Image
 # ###Reasoning
 # {reasoning}'''
 
-SYSTEM_PROMPT_EN = '''You are a helpful assistant. Answer in English proper. Imagine you are a content moderator on facebook you need to reasoning \
+SYSTEM_PROMPT_EN = '''You are a helpful assistant. Answer in English proper. Imagine you are a Vietnamese content moderator on Vietnam facebook post you need to reasoning \
 to category the content of the post (contain an image and a caption) is multi-sarcasm, not-sarcasm, image-sarcasm or text-sarcasm.'''
 
 
@@ -203,7 +203,7 @@ Given not-Sarcasm is any samples that contain one or more signs in the story (co
 3. Does NOT contain linguistic or visual cues typically associated with sarcasm.
 
 ### Instruction
-Reasoning why this Facebook post contains {multi_label} meaning based on the definition of Sarcasm and not-Sarcasm given above. \
+Reasoning why this Vietnamese Facebook post contains {multi_label} meaning based on the definition of Sarcasm and not-Sarcasm given above. \
 The sample given will be in order:
 ### Image
 
@@ -219,13 +219,33 @@ Step 2: Give an argument then conclude image, OCR or the Caption contain {label}
 Step 3: Conclude whether the image, OCR, and Caption contain Sarcasm or not-Sarcasm based on evaluation in step 2.'''
 
 
-INS_REASONING = '''Reasoning step-by-step the content of this Facebook post contains an image and a ###Caption. Do step-by-step:
-1. Describe the picture.
-2. Evaluate each fact in Sarcasm sign and not-Sarcasm in the image and the ###Caption: and explain the reason
-3. Conclude whether the image and Caption: contain Sarcasm based on evaluation in step 2. and conclude whether the sample is multi-sarcasm, not-sarcasm, image-sarcasm, or text-sarcasm.
+TRAIN_USER_INS = '''Imagine you are a content moderator on facebook you need to reasoning \
+to category the content of the post (contain an image and a caption) is multi-sarcasm, not-sarcasm, image-sarcasm or text-sarcasm. \
+Suggest some sarcasm signal and not-sarcasm :
 
-### Reasoning
-{reasoning}'''
+### Sarcasm-signal
+Given Sarcasm is any sample that contains one or more signs in the story (containing text and image) given below:
+1. Employs irony by saying the opposite of what is meant, especially to mock or deride. \
+Made in order to hurt someone's feelings, criticize or express something in a humorous way
+2. Contains a mismatch between the text (in Caption or OCR) and the image that suggests sarcasm through contradiction or exaggeration.
+3. Uses hyperbole to overstate or understate reality in a way that is clearly not meant to be taken literally
+4. Incorporates sarcastic hashtags, emojis, or punctuation, which are commonly used to convey sarcasm online. \
+Text in Caption or image that is not a conversation but put inside \"\" usually to sarcasm or say opposition thing.
+5. Characters whose actions are absurd and different from what is normally expected.
+
+### not-Sarcasm-signal
+Given not-Sarcasm is any samples that contain one or more signs in the story (contain text and image) given below:
+1. Conveys sentiments or statements that are straightforward and meant to be taken at face value.
+2. Aligns directly with the image, supporting the literal interpretation of the text.
+3. Does NOT contain linguistic or visual cues typically associated with sarcasm.
+
+Given a Facebook post contains an image <image>, the reference text in the image is: {ocr} and a caption: {caption}. \
+Explain step-by-step by analysis the image and caption then give the conclusion that is post have multi-sarcasm, not-sarcasm, image-sarcasm or text-sarcasm meaning.'''
+
+TRAIN_SYS_RESPONSE = '''{reason}
+
+**Final-result**
+The post is -> {label}'''
 
 import base64
 import requests

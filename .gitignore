@@ -14,6 +14,5 @@ __pycache__/
 
 data
 wandb
-LLaMA-Factory
 dump_shit
 model/pixtral_12b_official_weight

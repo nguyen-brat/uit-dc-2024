@@ -46,4 +46,12 @@ torchrun $DISTRIBUTED_ARGS src/train.py \
     --export_hub_model_id "nguyen-brat/Qwen2-vl-sarcasm" \
     --use_liger_kernel \
     --hf_hub_token "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" \
-    --gradient_checkpointing
+    --hub_private_repo \
+    --gradient_checkpointing \
+    --freeze_vision_tower \
+    --report_to "wandb" \
+    --save_strategy "epoch" \
+    --save_safetensors \
+    --save_total_limit 3 \
+
+# --optim adafactor / paged_lion_32bit / paged_lion_8bit / adamw_8bit / paged_adamw_32bit
