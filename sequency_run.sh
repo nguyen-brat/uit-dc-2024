@@ -16,21 +16,23 @@ check_error() {
 }
 
 # Activate uit-ds environment and run the Python script
-echo "Activating uit-ds environment..."
-conda activate uit-ds
-check_error "conda activate uit-ds"
+# echo "Activating uit-ds environment..."
+# conda activate uit-ds
+# check_error "conda activate uit-ds"
 
-echo "Running run_llm.py..."
-python run_llm.py
-check_error "python run_llm.py"
+# echo "Running run_llm.py..."
+# python run_llm.py
+# check_error "python run_llm.py"
 
 # Activate pixtral environment and run the reasoning Python script
 echo "Activating pixtral environment..."
 conda activate pixtral
 check_error "conda activate pixtral"
 
-echo "Running reasoning.py..."
-python src/agent/reasoning.py
+echo "Running reasoning.py... batch 6"
+python src/agent/reasoning.py --batch_size 6
+echo "Running reasoning.py... batch 3"
+python src/agent/reasoning.py --batch_size 3
 check_error "python src/agent/reasoning.py"
 
 echo "Script executed successfully."

@@ -55,7 +55,7 @@ class MSD(Qwen2VLPreTrainedModel):
         video_grid_thw: Optional[torch.LongTensor] = None,
         rope_deltas: Optional[torch.LongTensor] = None,
     ):
-        seq_logits = self.model(
+        logits = self.model(
             input_ids,
             attention_mask,
             position_ids,
@@ -74,32 +74,50 @@ class MSD(Qwen2VLPreTrainedModel):
 
         for encoder_layer in self.encoder_layers:
             if self.gradient_checkpointing and self.training:
-                seq_logits = self._gradient_checkpointing_func(
+                logits = self._gradient_checkpointing_func(
                     encoder_layer.__call__,
-                    seq_logits,
+                    logits,
                     attention_mask=attention_mask,
                     position_ids=position_ids,
                     past_key_values=past_key_values,
                     output_attentions=output_attentions,
                 )
             else:
-                seq_logits = encoder_layer(
-                    seq_logits,
+                logits = encoder_layer(
+                    logits,
                     attention_mask=attention_mask,
                     position_ids=position_ids,
                     past_key_values=past_key_values,
                     output_attentions=output_attentions,
                 )
 
-        mean_logits = self.masked_mean(seq_logits, attention_mask, 1)
+        if input_ids is not None:
+            batch_size = input_ids.shape[0]
+        else:
+            batch_size = inputs_embeds.shape[0]
+
+        if self.config.pad_token_id is None and batch_size != 1:
+            raise ValueError("Cannot handle batch sizes > 1 if no padding token is defined.")
+        if self.config.pad_token_id is None:
+            sequence_lengths = -1
+        else:
+            if input_ids is not None:
+                # if no pad token found, use modulo instead of reverse indexing for ONNX compatibility
+                sequence_lengths = torch.eq(input_ids, self.config.pad_token_id).int().argmax(-1) - 1
+                sequence_lengths = sequence_lengths % input_ids.shape[-1]
+                sequence_lengths = sequence_lengths.to(logits.device)
+            else:
+                sequence_lengths = -1
+        pooled_logits = logits[torch.arange(batch_size, device=logits.device), sequence_lengths]
+
+        # mean_logits = self.masked_mean(logits, attention_mask, 1)
         if self.gradient_checkpointing and self.training:
             logits = self._gradient_checkpointing_func(
                 self.classification_layer.__call__,
-                mean_logits,
+                pooled_logits,
             )
         else:
-            logits = self.classification_layer(mean_logits)
-
+            logits = self.classification_layer(pooled_logits)
         loss = self.compute_loss(logits, labels)
 
         return dict(loss=loss, logits=logits)
@@ -131,7 +149,6 @@ class MSD(Qwen2VLPreTrainedModel):
     def compute_loss(self, logits, labels):
         loss_fc = CrossEntropyLoss()
         loss = loss_fc(logits, labels)
-
         return loss
 
 

@@ -7,6 +7,7 @@ import re
 from sklearn.metrics import f1_score
 
 from torch.utils.data import DataLoader
+
 from qwen_vl_utils import process_vision_info
 from transformers import Qwen2VLProcessor, AutoProcessor
 
@@ -101,6 +102,8 @@ def train(config):
         )
     else:
         processor = AutoProcessor.from_pretrained(model_args.base_model)
+
+    collator = MSDDataCollator(processor, padding=True, max_length=data_args.pop("max_length", None))
     train_data_path = data_args.pop("train_data", None)
     if getattr(data_args, "val_data", None):
         val_data_path = data_args.pop("val_data", None)
@@ -113,8 +116,6 @@ def train(config):
         **train_data_path,
         **data_args,
     )
-
-    collator = MSDDataCollator(processor, padding=True)
 
     ################### Load model
     if model_args.base_model:
@@ -166,6 +167,8 @@ def train(config):
         model.config.use_cache = False
         model.enable_input_require_grads()
 
+    print(model)
+
     if training_args.pop("use_lora", None):
         target_modules = lora_args.pop("target_modules")
         if target_modules == "all-linear":
@@ -178,8 +181,8 @@ def train(config):
             **lora_args
         )
         # print(target_modules)
-        if lora_args.modules_to_save == []:
-            lora_args.pop("modules_to_save", None)
+        # if lora_args.modules_to_save == []:
+        #     lora_args.pop("modules_to_save", None)
         model = get_peft_model(model, lora_config)
 
     # ############################################################ TRAINER

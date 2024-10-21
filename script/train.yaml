@@ -5,15 +5,16 @@ data_args:
   val_data:
     annotate_path: "data/warn_up/ocr_llm.json"
     image_path: "data/warn_up/warmup-images"
+  max_length: 10000
   # min_pixels: 200704
   # max_pixels: 1003520
   # cache_dir: "./data_cache"
 
 training_args:
-  freeze_base: True
+  freeze_base: False
   bf16: True
-  use_lora: False
-  learning_rate: 8e-5
+  use_lora: True
+  learning_rate: 5e-5
   lr_scheduler_type: "cosine"
   warmup_ratio: 0.1
   weight_decay: 0.0
@@ -25,17 +26,18 @@ training_args:
   quantization: 0 # 0 mean not use quantization 4 mean 4 bit 8 mean 8 bit
   output_dir: "qwen2_vl_qwen2_reason"
   overwrite_output_dir: true
-  num_train_epochs: 2
+  num_train_epochs: 3
   per_device_train_batch_size: 1
-  per_device_eval_batch_size: 1
-  gradient_accumulation_steps: 1
+  per_device_eval_batch_size: 4
+  gradient_accumulation_steps: 5
   dataloader_num_workers: 36
   do_train: true
   do_eval: True
   eval_strategy: "steps" # Evaluation is done (and logged) every eval_steps
   logging_strategy: "steps"
   save_strategy: "steps"
-  eval_steps: 5
+  eval_steps: 10
+  save_steps: 200
   # seed: null
   resume_from_checkpoint: False
   load_best_model_at_end: True
@@ -43,8 +45,8 @@ training_args:
   metric_for_best_model: "f1"
 
 model_args:
-  base_model: "Qwen/Qwen2-VL-2B-Instruct"
-  extra_layers: 2
+  base_model: "Qwen/Qwen2-VL-7B-Instruct"
+  extra_layers: 0
   num_class: 4
   model_kwargs:
       token: "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"
