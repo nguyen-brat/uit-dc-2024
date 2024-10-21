@@ -32,10 +32,10 @@ training_args:
   dataloader_num_workers: 36
   do_train: true
   do_eval: True
-  eval_strategy: "epoch" # Evaluation is done (and logged) every eval_steps
+  eval_strategy: "steps" # Evaluation is done (and logged) every eval_steps
   logging_strategy: "steps"
-  save_strategy: "epoch"
-  # eval_steps: 10
+  save_strategy: "steps"
+  eval_steps: 200
   # seed: null
   resume_from_checkpoint: False
   load_best_model_at_end: True

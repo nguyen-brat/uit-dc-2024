@@ -15,4 +15,7 @@ __pycache__/
 data
 wandb
 dump_shit
+LLaMA-Factory/models
+LLaMA-Factory/sarcasm_model_trained
 model/pixtral_12b_official_weight
+log

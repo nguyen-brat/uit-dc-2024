@@ -13,7 +13,7 @@ import itertools
 from functools import partial
 from os.path import join as osp
 from tqdm import tqdm
-from prompt import create_reas_prompt_pixtral, create_reas_prompt_qwen2_vl, INS_REASONING
+from prompt import create_reas_prompt_pixtral, create_reas_prompt_qwen2_vl
 import traceback
 from datetime import datetime
 import gc
@@ -67,15 +67,15 @@ def clean_hashtag(caption):
 
 class ReasoningPrompt:
     def __init__(
-            self, model="pixal",
+            self, model="pixtral",
             generation_config = None,
     ):
-        if model == "pixal":
+        if model == "pixtral":
             self.load_pixtral()
         elif model == "qwen2":
             self.load_qwen2()
         else:
-            raise KeyError(f"There currently not support {model} only support qwen2 and pixal")
+            raise KeyError(f"There currently not support {model} only support qwen2 and pixtral")
         self.generation_config = {
             "max_new_tokens": 1024,
             # "repetition_penalty": 1.0,
@@ -119,6 +119,7 @@ class ReasoningPrompt:
         self.processor = AutoProcessor.from_pretrained("mistral-community/pixtral-12b")
         self.processor.tokenizer.add_special_tokens({'pad_token': '<pad>'})
         self.prompt_creator = partial(create_reas_prompt_pixtral, self.processor)
+        print("loading pixal model sccessfully")
 
     def load_qwen2(self):
         self.model = Qwen2VLForConditionalGeneration.from_pretrained(
@@ -127,6 +128,7 @@ class ReasoningPrompt:
         ).eval()
         self.processor = Qwen2VLProcessor.from_pretrained("Qwen/Qwen2-VL-7B-Instruct")
         self.prompt_creator = partial(create_reas_prompt_qwen2_vl, self.processor)
+        print("loading qwen2-vl model sccessfully")
 
 
 
@@ -178,13 +180,13 @@ def Reasoning(prompt_creator:ReasoningPrompt, input_path, output_path, image_pat
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             error_message = f"{timestamp} - Error: {str(e)}\n"
             error_message += traceback.format_exc()
-            with open(f"error_log_{output_file_name}.txt", "a") as error_file:
+            with open(f"log/error_log_{output_file_name}.txt", "a") as error_file:
                 error_file.write(error_message + "\n")
             
             # Save the keys that caused the error
             error_keys.extend(group_item["keys"])
 
-            with open(f"key_error_{output_file_name}.txt", "a") as key_error_file:
+            with open(f"log/key_error_{output_file_name}.txt", "a") as key_error_file:
                 for key in error_keys:
                     key_error_file.write(f"{key}\n")
 
@@ -193,10 +195,10 @@ def Reasoning(prompt_creator:ReasoningPrompt, input_path, output_path, image_pat
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", type=str, default="qwen2")
+    parser.add_argument("--model", type=str, default="pixtral")
     parser.add_argument("--image_path", type=str, default="data/public_train/train-images")
     parser.add_argument("--input_path", type=str, default="data/public_train/ocr_llm.json")
-    parser.add_argument("--output_path", type=str, default="data/public_train/reasoning_vlm_qwen2.json")
+    parser.add_argument("--output_path", type=str, default="data/public_train/reasoning_vlm_pixtral.json")
     parser.add_argument("--batch_size", type=int, default=6)
     args = parser.parse_args()
 
