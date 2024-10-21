@@ -1,8 +1,8 @@
 DIR=`pwd`
-model_path=${DIR}/dump_shit
-annotation_path=${DIR}/data/warn_up/ocr_llm.json
-image_path=${DIR}/data/warn_up/warmup-images
-output_dir=${DIR}/dump_output.json
+model_path=${DIR}/LLaMA-Factory/models/qwen2_vl_lora_sft_v1
+annotation_path=${DIR}/data/public_test/ocr_llm_fix.json
+image_path=${DIR}/data/public_test/dev-images
+output_dir=${DIR}/submit/result_cls.json
 
 python ${DIR}/run.py --model_path $model_path \
                      --annotation_path $annotation_path \

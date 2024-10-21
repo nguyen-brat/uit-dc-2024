@@ -92,8 +92,6 @@ class MSD(Qwen2VLPreTrainedModel):
                 )
 
         mean_logits = self.masked_mean(seq_logits, attention_mask, 1)
-        # print("##########")
-        # print(mean_logits.dtype)
         if self.gradient_checkpointing and self.training:
             logits = self._gradient_checkpointing_func(
                 self.classification_layer.__call__,

@@ -1,7 +1,7 @@
 data_args:
   train_data:
-    annotate_path: "data/warn_up/ocr_llm.json"
-    image_path: "data/warn_up/warmup-images"
+    annotate_path: "data/public_train/ocr_llm.json"
+    image_path: "data/public_train/train-images"
   val_data:
     annotate_path: "data/warn_up/ocr_llm.json"
     image_path: "data/warn_up/warmup-images"

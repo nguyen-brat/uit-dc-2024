@@ -4,6 +4,8 @@ import numpy as np
 import random
 import re
 
+from sklearn.metrics import f1_score
+
 from torch.utils.data import DataLoader
 from qwen_vl_utils import process_vision_info
 from transformers import Qwen2VLProcessor, AutoProcessor
@@ -22,6 +24,10 @@ from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 from ..dataloader import MSDDataloader, MSDDataCollator
 from ..model import MSD, MSDConfig, apply_liger_kernel_to_msd
 
+def compute_metrics(eval_pred):
+    output, labels = eval_pred
+    predictions = np.argmax(output.logits, axis=-1)
+    return f1_score.compute(labels, predictions, average='weighted')
 
 def set_seed_all(seed:int):
     random.seed(seed)
@@ -192,6 +198,7 @@ def train(config):
         data_collator=collator,
         train_dataset=train_dataloader,
         eval_dataset=val_dataloader if training_args.do_eval else None,
+        compute_metrics=compute_metrics if training_args.do_eval else None,
     )
     if training_args.do_eval:
         trainer.add_callback(EarlyStoppingCallback(early_stopping_patience=callback_args.patient))
@@ -202,6 +209,6 @@ def train(config):
         checkpoint = training_args.resume_from_checkpoint
     trainer.train(resume_from_checkpoint=checkpoint)
 
-    if trainer.is_local_process_zero:
+    if trainer.is_local_process_zero():
         trainer.save_state()
         trainer.save_model()
