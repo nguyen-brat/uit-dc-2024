@@ -23,24 +23,24 @@ training_args:
   torch_compile_backend: "cudagraphs"
   use_liger_kernel: False # BUG if True
   quantization: 0 # 0 mean not use quantization 4 mean 4 bit 8 mean 8 bit
-  output_dir: "dump_shit"
+  output_dir: "qwen2_vl_qwen2_reason"
   overwrite_output_dir: true
   num_train_epochs: 2
   per_device_train_batch_size: 1
   per_device_eval_batch_size: 1
-  gradient_accumulation_steps: 8
+  gradient_accumulation_steps: 1
   dataloader_num_workers: 36
   do_train: true
   do_eval: True
   eval_strategy: "steps" # Evaluation is done (and logged) every eval_steps
   logging_strategy: "steps"
   save_strategy: "steps"
-  eval_steps: 200
+  eval_steps: 5
   # seed: null
   resume_from_checkpoint: False
   load_best_model_at_end: True
   prediction_loss_only: False
-  metric_for_best_model: "eval_loss"
+  metric_for_best_model: "f1"
 
 model_args:
   base_model: "Qwen/Qwen2-VL-2B-Instruct"

@@ -19,14 +19,14 @@ reader = ImageOCR(
     script_path='script/text_detection.sh',
 )
 
-with open(r'data/vimmsd-warmup.json', "r", encoding='utf-8') as f:
+with open(r'data/public_train/vimmsd-train_01.json', "r", encoding='utf-8') as f:
     data = json.load(f)
 
 for key, value in tqdm(data.items()):
-    image_path = osp("data/warmup-images", value["image"])
+    image_path = osp("data/public_train/train-images", value["image"])
     image = Image.open(image_path)
     output = reader.predict(image, min_samples=1)
     data[key]["ocr"] = output
 
-with open(r"data/ocr.json", "w", encoding='utf-8') as f:
+with open(r"data/public_train/ocr_1.json", "w", encoding='utf-8') as f:
     json.dump(data, f, indent=4, ensure_ascii=False)

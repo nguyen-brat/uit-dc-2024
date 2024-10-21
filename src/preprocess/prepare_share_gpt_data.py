@@ -1,6 +1,7 @@
 import os
 from os.path import join as osp
 import json
+import random
 import sys
 from clean import clean_reasoning
 
@@ -34,6 +35,7 @@ def create_prompt_sharegpt_format(reasoning_file_path, image_path, output_path):
 
             results.append(result)
 
+    random.shuffle(results)
     with open(output_path, "w", encoding='utf-8') as f:
         json.dump(results, f, ensure_ascii=False, indent=4)
 

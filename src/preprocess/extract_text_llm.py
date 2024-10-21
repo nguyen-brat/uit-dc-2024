@@ -49,7 +49,7 @@ if __name__ == "__main__":
     for key, value in tqdm(data.items()):
         image_path = osp(image_folder_path, value["image"])
         pixel_values = load_image(image_path, max_num=6).to(torch.bfloat16).to(model.device)
-        response, history = model.chat(tokenizer, pixel_values, question, generation_config, history=None, return_history=True)
+        response, history = model.chat(tokenizer, pixel_values, question, repetition_penalty=1.5, history=None, return_history=True)
         data[key]["ocr"] = response
         with open(output_path, "w", encoding='utf-8') as f:
             json.dump(data, f, indent=4, ensure_ascii=False)

@@ -25,9 +25,11 @@ from ..dataloader import MSDDataloader, MSDDataCollator
 from ..model import MSD, MSDConfig, apply_liger_kernel_to_msd
 
 def compute_metrics(eval_pred):
-    output, labels = eval_pred
-    predictions = np.argmax(output.logits, axis=-1)
-    return f1_score.compute(labels, predictions, average='weighted')
+    output, labels = eval_pred.predictions, eval_pred.label_ids
+    predictions = np.argmax(output, axis=-1)
+    return dict(
+        f1_loss=f1_score(labels, predictions, average='weighted')
+    )
 
 def set_seed_all(seed:int):
     random.seed(seed)
