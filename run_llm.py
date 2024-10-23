@@ -179,7 +179,7 @@ def inference_llm(model, processor, input_path_annote, image_path, output_path, 
 
 
 if __name__ == "__main__":
-    model_path = "LLaMA-Factory/models/qwen2_vl_lora_sft_v1"
+    model_path = "LLaMA-Factory/models/qwen2_vl_pixtral_ds_lora_sft_v1"
 
     processor = Qwen2VLProcessor.from_pretrained("Qwen/Qwen2-VL-7B-Instruct")
     model = Qwen2VLForConditionalGeneration.from_pretrained(
@@ -193,6 +193,6 @@ if __name__ == "__main__":
         processor,
         "data/public_test/ocr_llm_fix.json",
         "data/public_test/dev-images",
-        "submit/public_test_reasoning.json",
+        "submit/public_test_reasoning_qwen2_pixal_ds.json",
         4,
     )

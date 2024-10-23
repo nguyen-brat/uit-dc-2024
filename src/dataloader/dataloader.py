@@ -5,7 +5,7 @@ from os.path import join as osp
 from .collator import MSDDataCollator
 from .prompt import SYSTEM_PROMPT, USER_PROMPT
 from transformers import Qwen2VLProcessor
-
+import random
 
 LABELS_MAP = {
     "multi-sarcasm": 0,
@@ -19,6 +19,7 @@ class MSDDataloader(Dataset):
     def __init__(self, annotate_path, image_path):
         with open(annotate_path, "r") as f:
             self.annotate = list(json.load(f).values())
+        random.shuffle(self.annotate)
         self.image_path = image_path
         self.cached_data_dict = {}
 

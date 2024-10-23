@@ -19,7 +19,7 @@ for key, item in data.items():
             if label_type in last_sentence:
                 label = label_type
     if label not in label_types:
-        label = "image-sarcasm"
+        label = "multi-sarcasm"
     result["results"][key] = label
 
 with open("submit/results.json", "w", encoding='utf-8') as f:

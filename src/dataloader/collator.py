@@ -9,7 +9,7 @@ from qwen_vl_utils import process_vision_info
 class MSDDataCollator:
     processor: Qwen2VLProcessor
     padding: bool = True
-    max_length: int = 5000
+    max_length: int = 3000
 
     def __call__(self, features: List[Tuple[List[Dict[str, Union[str, List[Dict]]]], int]]):
         '''

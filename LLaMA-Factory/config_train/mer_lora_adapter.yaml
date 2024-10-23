@@ -2,12 +2,12 @@
 
 ### model
 model_name_or_path: Qwen/Qwen2-VL-7B-Instruct
-adapter_name_or_path: sarcasm_model_trained
+adapter_name_or_path: ../qwen2_vl_qwen2_reason_cls
 template: qwen2_vl
 finetuning_type: lora
 
 ### export
-export_dir: models/qwen2_vl_lora_sft_v1
-export_size: 2
+export_dir: ../model/trained/qwen2_vl_cls_no_base_reas
+export_size: 4
 export_device: cpu
 export_legacy_format: false

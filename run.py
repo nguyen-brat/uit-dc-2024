@@ -21,10 +21,10 @@ def inference(args, model):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model_path", type=str, default="dump_shit")
-    parser.add_argument("--annotation_path", type=str, default="data/warn_up/ocr_llm.json")
-    parser.add_argument("--image_path", type=str, default="data/warn_up/warmup-images")
-    parser.add_argument("--output_dir", type=str, default="dump_output.json")
+    parser.add_argument("--model_path", type=str, default="model/trained/qwen2_vl_cls_no_base_reas")
+    parser.add_argument("--annotation_path", type=str, default="data/public_test/ocr_llm_fix.json")
+    parser.add_argument("--image_path", type=str, default="data/public_test/dev-images")
+    parser.add_argument("--output_dir", type=str, default="submit/results.json")
     parser.add_argument("--phase", type=str, default="dev")
     args = parser.parse_args()
 

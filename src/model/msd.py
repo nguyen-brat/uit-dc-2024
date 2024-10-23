@@ -8,10 +8,11 @@ import functools
 from os.path import join as osp
 from torch.utils.checkpoint import checkpoint
 
-from .config import MSDConfig
+from .config import MSDConfig, MSDOutput
 from .base import Qwen2VLHL, MSDCrossEncoderLayer
 from ..dataloader.prompt import SYSTEM_PROMPT, USER_PROMPT
 from qwen_vl_utils import process_vision_info
+from transformers import Trainer, LlamaForCausalLM
 
 
 class MSD(Qwen2VLPreTrainedModel):
@@ -96,19 +97,19 @@ class MSD(Qwen2VLPreTrainedModel):
         else:
             batch_size = inputs_embeds.shape[0]
 
-        if self.config.pad_token_id is None and batch_size != 1:
-            raise ValueError("Cannot handle batch sizes > 1 if no padding token is defined.")
-        if self.config.pad_token_id is None:
-            sequence_lengths = -1
-        else:
-            if input_ids is not None:
-                # if no pad token found, use modulo instead of reverse indexing for ONNX compatibility
-                sequence_lengths = torch.eq(input_ids, self.config.pad_token_id).int().argmax(-1) - 1
-                sequence_lengths = sequence_lengths % input_ids.shape[-1]
-                sequence_lengths = sequence_lengths.to(logits.device)
-            else:
-                sequence_lengths = -1
-        pooled_logits = logits[torch.arange(batch_size, device=logits.device), sequence_lengths]
+        # if self.config.pad_token_id is None and batch_size != 1:
+        #     raise ValueError("Cannot handle batch sizes > 1 if no padding token is defined.")
+        # if self.config.pad_token_id is None:
+        #     sequence_lengths = -1
+        # else:
+        #     if input_ids is not None:
+        #         # if no pad token found, use modulo instead of reverse indexing for ONNX compatibility
+        #         sequence_lengths = torch.eq(input_ids, self.config.pad_token_id).int().argmax(-1) - 1
+        #         sequence_lengths = sequence_lengths % input_ids.shape[-1]
+        #         sequence_lengths = sequence_lengths.to(logits.device)
+        #     else:
+        #         sequence_lengths = -1
+        pooled_logits = logits[torch.arange(batch_size, device=logits.device), -1]
 
         # mean_logits = self.masked_mean(logits, attention_mask, 1)
         if self.gradient_checkpointing and self.training:
@@ -118,9 +119,12 @@ class MSD(Qwen2VLPreTrainedModel):
             )
         else:
             logits = self.classification_layer(pooled_logits)
-        loss = self.compute_loss(logits, labels)
+        
+        loss = None
+        if labels is not None:
+            loss = self.compute_loss(logits, labels)
 
-        return dict(loss=loss, logits=logits)
+        return MSDOutput(loss=loss, logits=logits)
 
 
     def masked_mean(self, tensor:torch.Tensor, mask, dim):
@@ -226,20 +230,7 @@ class MSD(Qwen2VLPreTrainedModel):
             return_tensors="pt",
         ).to(self.device)
 
-        # output = self.__call__(**inputs)
-
-        seq_logits = self.model(**inputs).logits
-        for encoder_layer in self.encoder_layers:
-            seq_logits = encoder_layer(
-                seq_logits,
-                attention_mask=inputs["attention_mask"],
-                position_ids=inputs.pop("position_ids", None),
-                past_key_values=inputs.pop("past_key_values", None),
-                output_attentions=inputs.pop("output_attentions", None),
-            )
-
-        mean_logits = self.masked_mean(seq_logits, inputs["attention_mask"], 1)
-        logits = self.classification_layer(mean_logits).cpu()[0]
+        logits = self.__call__(**inputs).logits.cpu()
 
         return LABELS_MAP[torch.argmax(logits, dim=-1).item()]
 

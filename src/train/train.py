@@ -21,16 +21,20 @@ from transformers import (
     set_seed,
 )
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
-
+import evaluate
 from ..dataloader import MSDDataloader, MSDDataCollator
 from ..model import MSD, MSDConfig, apply_liger_kernel_to_msd
+from transformers import Trainer
 
+metric = evaluate.load("f1")
 def compute_metrics(eval_pred):
     output, labels = eval_pred.predictions, eval_pred.label_ids
     predictions = np.argmax(output, axis=-1)
-    return dict(
-        f1_loss=f1_score(labels, predictions, average='weighted')
-    )
+    # print(predictions)
+    # return dict(
+    #     f1=f1_score(labels, predictions, average='macro')
+    # )
+    return metric.compute(predictions=predictions, references=labels, average="macro")
 
 def set_seed_all(seed:int):
     random.seed(seed)
@@ -43,21 +47,39 @@ def set_seed_all(seed:int):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-def get_all_linear_layers(model):
-    """
-    Get module that are linear to feed into target module for
-    Lora config
-    """
 
-    linear_classes = (torch.nn.Linear, torch.nn.Embedding)
-    linear_module_names = set()
+def get_all_linear_layers(model, freeze_vision_tower: bool):
+    r"""
+    Finds all available modules to apply lora or galore.
+    """
+    model_type = getattr(model.config, "model_type", None)
+    forbidden_modules = {"lm_head"}
+    if model_type == "chatglm":
+        forbidden_modules.add("output_layer")
+    elif model_type == "internlm2":
+        forbidden_modules.add("output")
+    elif model_type in ["llava", "llava_next", "llava_next_video", "paligemma", "video_llava"]:
+        forbidden_modules.add("multi_modal_projector")
+    elif (model_type == "qwen2_vl") and (model_type == "msd" ):
+        forbidden_modules.add("merger")
+        forbidden_modules.add("encoder_layers")
+        forbidden_modules.add("classification_layer")
 
+    if freeze_vision_tower:
+        if (model_type == "qwen2_vl") and (model_type == "msd" ):
+            forbidden_modules.add("visual")
+        else:
+            forbidden_modules.add("vision_tower")
+
+    module_names = set()
     for name, module in model.named_modules():
-        # match with all linear classes.
-        if isinstance(module, linear_classes):
-            linear_module_names.add(name)
+        if any(forbidden_module in name for forbidden_module in forbidden_modules):
+            continue
 
-    return list(linear_module_names)
+        if "Linear" in module.__class__.__name__ and "Embedding" not in module.__class__.__name__:
+            module_names.add(name.split(".")[-1])
+
+    return list(module_names)
 
 
 
@@ -161,28 +183,24 @@ def train(config):
     else:
         raise ValueError("You must specify embedder_based and thinker_based")
     
+    print(model)
 
     if training_args.gradient_checkpointing:
         model.gradient_checkpointing_enable(training_args.gradient_checkpointing_kwargs)
         model.config.use_cache = False
         model.enable_input_require_grads()
 
-    print(model)
-
     if training_args.pop("use_lora", None):
         target_modules = lora_args.pop("target_modules")
         if target_modules == "all-linear":
-            target_modules = get_all_linear_layers(model)
-        modules_to_save = [string for string in target_modules if any(re.match(pattern, string) for pattern in lora_args.pop("modules_to_save", []))]
+            target_modules = get_all_linear_layers(model, freeze_vision_tower=True)
+        # modules_to_save = [string for string in target_modules if any(re.match(pattern, string) for pattern in lora_args.pop("modules_to_save", []))]
         
         lora_config = LoraConfig(
-            target_modules=[module for module in target_modules if module not in modules_to_save],
-            modules_to_save=modules_to_save,
+            target_modules=[module for module in target_modules if module not in lora_args.modules_to_save],
+            modules_to_save=lora_args.pop("modules_to_save", []), #modules_to_save,
             **lora_args
         )
-        # print(target_modules)
-        # if lora_args.modules_to_save == []:
-        #     lora_args.pop("modules_to_save", None)
         model = get_peft_model(model, lora_config)
 
     # ############################################################ TRAINER
@@ -203,7 +221,7 @@ def train(config):
         data_collator=collator,
         train_dataset=train_dataloader,
         eval_dataset=val_dataloader if training_args.do_eval else None,
-        compute_metrics=compute_metrics if training_args.do_eval else None,
+        compute_metrics=compute_metrics # if training_args.do_eval else None,
     )
     if training_args.do_eval:
         trainer.add_callback(EarlyStoppingCallback(early_stopping_patience=callback_args.patient))

@@ -43,7 +43,7 @@ def create_prompt_sharegpt_format(reasoning_file_path, image_path, output_path):
 
 if __name__ == "__main__":
     _ = create_prompt_sharegpt_format(
-        reasoning_file_path="data/public_train/reasoning_vlm_qwen2.json",
+        reasoning_file_path="data/public_train/reasoning_vlm_pixtral_reduce.json",
         image_path="data/public_train/train-images",
-        output_path="LLaMA-Factory/data/sarcasm_detection_ds.json"
+        output_path="LLaMA-Factory/data/sarcasm_detection_ds_pixtral.json"
     )

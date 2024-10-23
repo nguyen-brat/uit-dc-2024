@@ -26,8 +26,24 @@ def clean_hashtag(caption):
 # remove the term To determnine if of the reasoning term
 def clean_reasoning(reasoning):
     terms = reasoning.split(",")
-    if ("To determine if" in terms[0]) or ("to determine if" in terms[0]):
-        return ",".join(terms[1:]).strip()
+    # case for qwen2-vl
+    if ("To determine" in terms[0]) or ("to determine" in terms[0]):
+        reasoning = ",".join(terms[1:]).strip().capitalize()
+
+    if reasoning.find('.') < reasoning.find(':'):
+        terms = reasoning.split(".")
+        spliter = '.'
+    else:
+        terms = reasoning.split(":")
+        spliter = ':'
+    for label_type in ["image-sarcasm", "text-sarcasm", "not-sarcasm", "multi-sarcasm", "sarcasm"]:
+        if label_type in terms[0].lower():
+            if label_type == "not-sarcasm":
+                terms[0] = terms[0] + " and sarcasm signals"
+            else:
+                terms[0] += " and not-sarcasm signals"
+            return f"{spliter}".join(terms).strip().capitalize()
+        
     return reasoning
 
 def remove_chinese_tokens(text):

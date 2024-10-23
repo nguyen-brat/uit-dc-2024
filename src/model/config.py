@@ -29,3 +29,10 @@ class MSDConfig(PretrainedConfig):
         self.max_pixels = max_pixels
         self.update(AutoConfig.from_pretrained(base_model).to_dict())
         super().__init__(**kwargs)
+
+
+@dataclass
+class MSDOutput(ModelOutput):
+    loss: Optional[torch.Tensor] = None
+    logits: Optional[torch.Tensor] = None
+    # msd_labels: Optional[torch.Tensor] = None

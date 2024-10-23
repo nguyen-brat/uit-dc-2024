@@ -18,5 +18,9 @@ dump_shit
 LLaMA-Factory/models
 LLaMA-Factory/sarcasm_model_trained
 model/pixtral_12b_official_weight
+LLaMA-Factory/sarcasm_model_trained_pixtral_ds
+qwen2_vl_qwen2_reason_cls
 log
+LLaMA-Factory
+submit
 data.zip
