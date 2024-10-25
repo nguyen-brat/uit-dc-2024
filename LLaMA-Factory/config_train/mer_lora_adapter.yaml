@@ -2,12 +2,12 @@
 
 ### model
 model_name_or_path: Qwen/Qwen2-VL-7B-Instruct
-adapter_name_or_path: ../qwen2_vl_qwen2_reason_cls
+adapter_name_or_path: adapter/qwen2_qwen2_ds_reasoning_v2
 template: qwen2_vl
 finetuning_type: lora
 
 ### export
-export_dir: ../model/trained/qwen2_vl_cls_no_base_reas
+export_dir: models/qwen2_vl_lora_sft_v2
 export_size: 4
 export_device: cpu
 export_legacy_format: false

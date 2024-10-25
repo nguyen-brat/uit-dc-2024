@@ -3,6 +3,7 @@ from transformers import AutoProcessor
 from torch import nn
 from torch.nn import CrossEntropyLoss
 import torch
+import torch.nn.functional as F
 from typing import Optional, List
 import functools
 from os.path import join as osp
@@ -13,6 +14,70 @@ from .base import Qwen2VLHL, MSDCrossEncoderLayer
 from ..dataloader.prompt import SYSTEM_PROMPT, USER_PROMPT
 from qwen_vl_utils import process_vision_info
 from transformers import Trainer, LlamaForCausalLM
+
+class FocalLoss(nn.Module):
+    def __init__(self, alpha=None, gamma=2.0, reduction='mean'):
+        """
+        Focal Loss implementation for multi-class sarcasm detection
+        
+        Args:
+            alpha (tensor, optional): Weight for each class. Helps handle class imbalance.
+                                    Should sum to 1. Default None
+            gamma (float): Focusing parameter. Higher gamma reduces the relative loss 
+                          for well-classified examples, focusing more on hard examples.
+                          Default: 2.0
+            reduction (str): 'mean', 'sum' or 'none'. Default: 'mean'
+        """
+        super().__init__()
+        self.gamma = gamma
+        self.reduction = reduction
+        
+        # Based on your class distribution analysis
+        if alpha is None:
+            # Calculate alpha based on inverse square root of class frequencies
+            frequencies = torch.tensor([
+                0.167,  # multi-sarcasm
+                0.078,  # not-sarcasm
+                0.0005, # image-sarcasm
+                0.00018 # text-sarcasm
+            ])
+            
+            # Inverse square root weighting
+            alpha = 1.0 / torch.sqrt(frequencies)
+            
+            # Normalize to sum to 1
+            self.alpha = alpha / alpha.sum()
+        else:
+            self.alpha = alpha
+
+    def forward(self, inputs, targets):
+        """
+        Args:
+            inputs: Predictions from model (before softmax) of shape (N, C)
+            targets: Ground truth labels of shape (N,)
+        """
+        # Convert inputs to probabilities
+        p = F.softmax(inputs, dim=-1)
+        
+        # Get probability for the target class
+        targets = targets.view(-1, 1)
+        p_t = p.gather(1, targets).view(-1)
+        
+        # Calculate weights for each sample
+        alpha_t = self.alpha.gather(0, targets.view(-1)).to(inputs.device)
+        
+        # Calculate focal loss
+        focal_weight = (1 - p_t) ** self.gamma
+        
+        # Combine focal weight with class weight (alpha)
+        loss = -alpha_t * focal_weight * torch.log(p_t + 1e-8)
+        
+        if self.reduction == 'mean':
+            return loss.mean()
+        elif self.reduction == 'sum':
+            return loss.sum()
+        else:
+            return loss
 
 
 class MSD(Qwen2VLPreTrainedModel):
@@ -30,7 +95,7 @@ class MSD(Qwen2VLPreTrainedModel):
                 max_pixels=config.max_pixels
             )
         else:
-            self.processor = AutoProcessor.from_pretrained(config.base_model,)
+            self.processor = AutoProcessor.from_pretrained("Qwen/Qwen2-VL-7B-Instruct")
         self.model = Qwen2VLHL.from_pretrained(config.base_model, **config.model_kwargs)
         self.encoder_layers = nn.ModuleList(
             MSDCrossEncoderLayer(config, layer_idx) for layer_idx in range(config.num_hidden_layers, config.num_hidden_layers + config.extra_layers)
@@ -151,8 +216,32 @@ class MSD(Qwen2VLPreTrainedModel):
     
 
     def compute_loss(self, logits, labels):
-        loss_fc = CrossEntropyLoss()
-        loss = loss_fc(logits, labels)
+        '''
+        weights = {
+            'multi-sarcasm': 1/√0.167 ≈ 2.45,
+            'not-sarcasm': 1/√0.078 ≈ 3.58,
+            'image-sarcasm': 1/√0.005 ≈ 14.14,
+            'text-sarcasm': 1/√0.00018 ≈ 74.54
+        }
+        '''
+        custom_alpha = torch.tensor([
+            0.15,  # multi-sarcasm
+            0.20,  # not-sarcasm
+            0.30,  # image-sarcasm
+            0.35   # text-sarcasm
+        ])
+        
+        # Initialize focal loss with recommended parameters
+        criterion = FocalLoss(
+            alpha=custom_alpha,  # Can be set to None to use inverse sqrt weighting
+            gamma=2.5,          # Recommended value for this case
+            reduction='mean'
+        )
+        # normal loss
+        # weights = torch.tensor([2.45, 3.58, 14.14, 74.54], device=logits.device)
+        # loss_fc = CrossEntropyLoss(weight=weights)
+        # loss = loss_fc(logits, labels)
+        loss = criterion(logits, labels)
         return loss
 
 
@@ -201,6 +290,8 @@ class MSD(Qwen2VLPreTrainedModel):
         '''
         predict output for evaluation
         '''
+        chat_template = "{% set image_count = namespace(value=0) %}{% set video_count = namespace(value=0) %}{% for message in messages %}{% if loop.first and message['role'] != 'system' %}<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n{% endif %}<|im_start|>{{ message['role'] }}\n{% if message['content'] is string %}{{ message['content'] }}<|im_end|>\n{% else %}{% for content in message['content'] %}{% if content['type'] == 'image' or 'image' in content or 'image_url' in content %}{% set image_count.value = image_count.value + 1 %}{% if add_vision_id %}Picture {{ image_count.value }}: {% endif %}<|vision_start|><|image_pad|><|vision_end|>{% elif content['type'] == 'video' or 'video' in content %}{% set video_count.value = video_count.value + 1 %}{% if add_vision_id %}Video {{ video_count.value }}: {% endif %}<|vision_start|><|video_pad|><|vision_end|>{% elif 'text' in content %}{{ content['text'] }}{% endif %}{% endfor %}<|im_end|>\n{% endif %}{% endfor %}{% if add_generation_prompt %}<|im_start|>assistant\n{% endif %}"
+
         LABELS_MAP = {
             0: "multi-sarcasm",
             1: "not-sarcasm",
@@ -219,7 +310,8 @@ class MSD(Qwen2VLPreTrainedModel):
             }
         ]
         text = self.processor.apply_chat_template(
-            message, tokenize=False, add_generation_prompt=True
+            message, tokenize=False, add_generation_prompt=True,
+            chat_template=chat_template if self.processor.chat_template is None else self.processor.chat_template,
         )
         image_inputs, video_inputs = process_vision_info(message)
         inputs = self.processor(

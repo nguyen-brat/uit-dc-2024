@@ -1,10 +1,12 @@
 data_args:
   train_data:
-    annotate_path: "data/public_train/ocr_llm_fix.json"
+    annotate_path: "data/public_train/ocr_llm_fix_train.json"
     image_path: "data/public_train/train-images"
+    # annotate_path: "data/warn_up/ocr_llm.json"
+    # image_path: "data/warn_up/warmup-images"
   val_data:
-    annotate_path: "data/warn_up/ocr_llm.json"
-    image_path: "data/warn_up/warmup-images"
+    annotate_path: "data/public_train/ocr_llm_fix_test.json"
+    image_path: "data/public_train/train-images"
   max_length: 2500
   # min_pixels: 200704
   # max_pixels: 1003520
@@ -24,9 +26,9 @@ training_args:
   torch_compile_backend: "cudagraphs"
   use_liger_kernel: False # BUG if True
   quantization: 0 # 0 mean not use quantization 4 mean 4 bit 8 mean 8 bit
-  output_dir: "qwen2_vl_qwen2_reason_cls"
+  output_dir: "model/hf/qwen2_vl_cls_qwen2_reason_base_focal_loss"
   overwrite_output_dir: true
-  num_train_epochs: 3
+  num_train_epochs: 4
   per_device_train_batch_size: 2
   per_device_eval_batch_size: 2
   gradient_accumulation_steps: 8
@@ -45,10 +47,12 @@ training_args:
   load_best_model_at_end: True
   prediction_loss_only: False
   metric_for_best_model: "f1"
+  neftune_noise_alpha: 5
+  label_smoothing_factor: 0.1
 
 model_args:
-  base_model: "Qwen/Qwen2-VL-7B-Instruct"
-  extra_layers: 0
+  base_model: "LLaMA-Factory/models/qwen2_vl_lora_sft_v2"
+  extra_layers: 4
   num_class: 4
   model_kwargs:
       token: "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"
@@ -66,16 +70,27 @@ lora_args:
   lora_alpha: 32
   lora_dropout: 0.05
   bias: "none"
-  target_modules: ['down_proj','gate_proj','v_proj','up_proj','k_proj','o_proj','q_proj'] # "all-linear"
-  modules_to_save: ["encoder_layers.*", "classification_layer"]
+  target_modules: [
+    .*\.down_proj,  # Add $ to match end of string
+    .*\.gate_proj,
+    .*\.v_proj,
+    .*\.up_proj,
+    .*\.k_proj,
+    .*\.o_proj,
+    .*\.q_proj
+  ] # "all-linear"
+  modules_to_save: [
+    ^encoder_layers.*,  # Add ^ to match start of string
+    ^classification_layer
+  ]
 
 wandb_args:
-  run_name: "freeze hill" # "My goodfellas"
+  run_name: "qwen2-vl-reasoning-tuned-based_dump" # "My goodfellas"
   logging_steps: 1
   report_to: "wandb"
 
 callback_args:
-  patient: 3
+  patient: null
 
 huggingface_args:
   push_to_hub: false
