@@ -29,17 +29,17 @@ training_args:
   output_dir: "model/hf/qwen2_vl_cls_qwen2_reason_base_focal_loss"
   overwrite_output_dir: true
   num_train_epochs: 4
-  per_device_train_batch_size: 2
-  per_device_eval_batch_size: 2
-  gradient_accumulation_steps: 8
+  per_device_train_batch_size: 1
+  per_device_eval_batch_size: 1
+  gradient_accumulation_steps: 32
   dataloader_num_workers: 36
   do_train: true
   do_eval: true
   eval_strategy: "steps" # Evaluation is done (and logged) every eval_steps
   logging_strategy: "steps"
   save_strategy: "steps"
-  eval_steps: 30
-  save_steps: 150
+  eval_steps: 15
+  save_steps: 60
   save_total_limit: 5
   # seed: null
   label_names: ["labels"]

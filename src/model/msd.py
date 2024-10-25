@@ -17,17 +17,6 @@ from transformers import Trainer, LlamaForCausalLM
 
 class FocalLoss(nn.Module):
     def __init__(self, alpha=None, gamma=2.0, reduction='mean'):
-        """
-        Focal Loss implementation for multi-class sarcasm detection
-        
-        Args:
-            alpha (tensor, optional): Weight for each class. Helps handle class imbalance.
-                                    Should sum to 1. Default None
-            gamma (float): Focusing parameter. Higher gamma reduces the relative loss 
-                          for well-classified examples, focusing more on hard examples.
-                          Default: 2.0
-            reduction (str): 'mean', 'sum' or 'none'. Default: 'mean'
-        """
         super().__init__()
         self.gamma = gamma
         self.reduction = reduction
@@ -51,24 +40,14 @@ class FocalLoss(nn.Module):
             self.alpha = alpha
 
     def forward(self, inputs, targets):
-        """
-        Args:
-            inputs: Predictions from model (before softmax) of shape (N, C)
-            targets: Ground truth labels of shape (N,)
-        """
-        # Convert inputs to probabilities
         p = F.softmax(inputs, dim=-1)
-        
         # Get probability for the target class
         targets = targets.view(-1, 1)
         p_t = p.gather(1, targets).view(-1)
-        
         # Calculate weights for each sample
         alpha_t = self.alpha.gather(0, targets.view(-1)).to(inputs.device)
-        
         # Calculate focal loss
         focal_weight = (1 - p_t) ** self.gamma
-        
         # Combine focal weight with class weight (alpha)
         loss = -alpha_t * focal_weight * torch.log(p_t + 1e-8)
         
