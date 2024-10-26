@@ -5,6 +5,7 @@ import random
 import re
 import os
 import json
+import functools
 from tqdm import tqdm
 
 from sklearn.metrics import f1_score
@@ -13,7 +14,8 @@ from sklearn.metrics import confusion_matrix
 from torch.utils.data import DataLoader
 
 from qwen_vl_utils import process_vision_info
-from transformers import Qwen2VLProcessor, AutoProcessor
+from transformers import Qwen2VLProcessor, AutoProcessor, PreTrainedModel
+from peft import PeftModel
 
 from transformers import (
     AutoTokenizer,
@@ -53,13 +55,15 @@ def inference(
             json.dump(result, f, indent=4, ensure_ascii=False)
 
 
-def calculate_f1_scores(y_true, y_pred):
+def calculate_f1_scores(y_true, y_pred, inverse_labels_map = None):
     label_names = {
         0: 'multi-sarcasm',
         1: 'not-sarcasm',
         2: 'image-sarcasm',
         3: 'text-sarcasm'
     }
+    if inverse_labels_map:
+        label_names = inverse_labels_map
     cm = confusion_matrix(y_true, y_pred, labels=[0, 1, 2, 3])
     f1_scores = {}
     for idx in range(4):
@@ -77,10 +81,10 @@ def calculate_f1_scores(y_true, y_pred):
 
 
 metric = evaluate.load("f1")
-def compute_metrics(eval_pred):
+def compute_metrics(eval_pred, inverse_labels_map):
     output, labels = eval_pred.predictions, eval_pred.label_ids
     predictions = np.argmax(output, axis=-1)
-    confusion_output = calculate_f1_scores(labels, predictions)
+    confusion_output = calculate_f1_scores(labels, predictions, inverse_labels_map)
     return dict(
         multi_sarcasm_f1=confusion_output["multi-sarcasm"],
         not_sarcasm_f1=confusion_output["not-sarcasm"],
@@ -181,6 +185,7 @@ def train(config):
     if getattr(training_args, "seed", None):
         set_seed_all(training_args.seed)
 
+    inver_labels_map = {value: key for key, value in data_args.labels_map.items()}
     ################### Load data
     min_pixels=data_args.pop("min_pixels", None)
     max_pixels=data_args.pop("max_pixels", None)
@@ -209,6 +214,10 @@ def train(config):
 
     ################### Load model
     if model_args.base_model:
+        labels_ratio = {}
+        for label_class, ratio in train_dataloader.calculate_class_ratio().items():
+            labels_ratio[data_args.labels_map[label_class]] = ratio
+        labels_ratio = list(dict(sorted(labels_ratio.items(), reverse=False)).values())
         quantization_config=None
         if training_args.quantization == 4:
             quantization_4bit_config = {
@@ -229,6 +238,8 @@ def train(config):
             config = MSDConfig(
                 quantization_config = quantization_config,
                 torch_dtype=compute_dtype,
+                id2label=inver_labels_map,
+                class_ratio=labels_ratio,
                 min_pixels=min_pixels,
                 max_pixels=max_pixels,
                 **model_args
@@ -236,6 +247,9 @@ def train(config):
         else:
             config = MSDConfig(
                 torch_dtype=compute_dtype,
+                id2label=inver_labels_map,
+                num_class=len(inver_labels_map),
+                class_ratio=labels_ratio,
                 **model_args
             )
         model = MSD(config)
@@ -282,6 +296,7 @@ def train(config):
             **lora_args
         )
         model = get_peft_model(model, lora_config)
+        model.print_trainable_parameters()
 
     # ############################################################ TRAINER
     train_args = TrainingArguments(
@@ -291,14 +306,13 @@ def train(config):
         **huggingface_args,
     )
 
-
     trainer = Trainer(
         model=model,
         args=train_args,
         data_collator=collator,
         train_dataset=train_dataloader,
         eval_dataset=val_dataloader if training_args.do_eval else None,
-        compute_metrics=compute_metrics # if training_args.do_eval else None,
+        compute_metrics=functools.partial(compute_metrics, inverse_labels_map=inver_labels_map) # if training_args.do_eval else None,
     )
     if training_args.do_eval and callback_args.get("patient", None):
         trainer.add_callback(EarlyStoppingCallback(early_stopping_patience=callback_args.patient))
@@ -310,7 +324,7 @@ def train(config):
     trainer.train(resume_from_checkpoint=checkpoint)
 
     if trainer.is_local_process_zero() and use_lora:
-        model = trainer.model.merge_and_unload()
+        model = trainer.accelerator.unwrap_model(trainer.model).merge_and_unload()
         model.save_pretrained(
             f"{training_args.output_dir}/merged_model",
             safe_serialization=True,

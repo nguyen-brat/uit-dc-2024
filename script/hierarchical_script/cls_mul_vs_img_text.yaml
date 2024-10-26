@@ -16,9 +16,8 @@ data_args:
   max_length: 2500
   labels_map:
     multi-sarcasm: 0
-    not-sarcasm: 1
-    image-sarcasm: 2
-    text-sarcasm: 3
+    image-sarcasm: 1
+    text-sarcasm: 1
   # min_pixels: 200704
   # max_pixels: 1003520
   # cache_dir: "./data_cache"
@@ -37,7 +36,7 @@ training_args:
   torch_compile_backend: "cudagraphs"
   use_liger_kernel: False # BUG if True
   quantization: 0 # 0 mean not use quantization 4 mean 4 bit 8 mean 8 bit
-  output_dir: "model/hf/qwen2_vl_cls_qwen2_reason_base_upsample_ds_weight_ce_loss"
+  output_dir: "model/hierarchical/cls_multi_sarcasm_vs_image_text_sarcasm"
   overwrite_output_dir: true
   num_train_epochs: 5
   per_device_train_batch_size: 2
@@ -65,7 +64,6 @@ training_args:
 model_args:
   base_model: "LLaMA-Factory/models/qwen2_vl_lora_sft_v2"
   extra_layers: 4
-  # num_class: 4
   model_kwargs:
       token: "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"
       use_cache: False

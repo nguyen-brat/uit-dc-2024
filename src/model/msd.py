@@ -7,6 +7,7 @@ import torch.nn.functional as F
 from typing import Optional, List
 import functools
 from os.path import join as osp
+import math
 from torch.utils.checkpoint import checkpoint
 
 from .config import MSDConfig, MSDOutput
@@ -81,6 +82,7 @@ class MSD(Qwen2VLPreTrainedModel):
         )
         self.classification_layer = nn.Linear(self.config.hidden_size, config.num_class)
         self.gradient_checkpointing = False
+        self.class_ratio = config.class_ratio
 
     def forward(
         self,
@@ -203,23 +205,29 @@ class MSD(Qwen2VLPreTrainedModel):
             'text-sarcasm': 1/√0.00018 ≈ 74.54
         }
         '''
-        custom_alpha = torch.tensor([
-            0.15,  # multi-sarcasm
-            0.20,  # not-sarcasm
-            0.30,  # image-sarcasm
-            0.35   # text-sarcasm
-        ])
+        # custom_alpha = torch.tensor([
+        #     0.2,  # multi-sarcasm
+        #     0.15,  # not-sarcasm
+        #     0.30,  # image-sarcasm
+        #     0.35   # text-sarcasm
+        # ])
         
-        # Initialize focal loss with recommended parameters
-        criterion = FocalLoss(
-            alpha=custom_alpha,  # Can be set to None to use inverse sqrt weighting
-            gamma=2.5,          # Recommended value for this case
-            reduction='mean'
-        )
+        # # Initialize focal loss with recommended parameters
+        # criterion = FocalLoss(
+        #     alpha=custom_alpha,  # Can be set to None to use inverse sqrt weighting
+        #     gamma=2.5,          # Recommended value for this case
+        #     reduction='mean'
+        # )
+        
         # normal loss
-        # weights = torch.tensor([2.45, 3.58, 14.14, 74.54], device=logits.device)
-        # loss_fc = CrossEntropyLoss(weight=weights)
-        # loss = loss_fc(logits, labels)
+        if self.class_ratio:
+            weights = 1/torch.sqrt(torch.tensor(self.class_ratio))
+            weights = weights/weights.sum()
+        else:
+            weights = torch.tensor([1/math.sqrt(3813), 1/math.sqrt(5446), 1/math.sqrt(2619), 1/math.sqrt(682)], device=logits.device)
+            weights = weights/weights.sum()
+        criterion = CrossEntropyLoss(weight=weights)
+
         loss = criterion(logits, labels)
         return loss
 
@@ -265,36 +273,42 @@ class MSD(Qwen2VLPreTrainedModel):
     
 
     @torch.no_grad()
-    def predict(self, sample, image_path):
+    def predict(self, samples, image_path):
         '''
         predict output for evaluation
         '''
         chat_template = "{% set image_count = namespace(value=0) %}{% set video_count = namespace(value=0) %}{% for message in messages %}{% if loop.first and message['role'] != 'system' %}<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n{% endif %}<|im_start|>{{ message['role'] }}\n{% if message['content'] is string %}{{ message['content'] }}<|im_end|>\n{% else %}{% for content in message['content'] %}{% if content['type'] == 'image' or 'image' in content or 'image_url' in content %}{% set image_count.value = image_count.value + 1 %}{% if add_vision_id %}Picture {{ image_count.value }}: {% endif %}<|vision_start|><|image_pad|><|vision_end|>{% elif content['type'] == 'video' or 'video' in content %}{% set video_count.value = video_count.value + 1 %}{% if add_vision_id %}Video {{ video_count.value }}: {% endif %}<|vision_start|><|video_pad|><|vision_end|>{% elif 'text' in content %}{{ content['text'] }}{% endif %}{% endfor %}<|im_end|>\n{% endif %}{% endfor %}{% if add_generation_prompt %}<|im_start|>assistant\n{% endif %}"
-
         LABELS_MAP = {
             0: "multi-sarcasm",
             1: "not-sarcasm",
             2: "image-sarcasm",
             3: "text-sarcasm",
         }
+        if self.id2label:
+            LABELS_MAP = self.id2label
 
-        message = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {
-                "role": "user",
-                "content": [
-                    {"type": "image", "image": osp(image_path, sample["image"])},
-                    {"type": "text", "text": USER_PROMPT.format(caption=sample["caption"], ocr=sample["ocr"])}
-                ]
-            }
+        messages = [
+            [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "image", "image": osp(image_path, sample["image"])},
+                        {"type": "text", "text": USER_PROMPT.format(caption=sample["caption"], ocr=sample["ocr"])}
+                    ]
+                }
+            ] for sample in samples.values()
         ]
-        text = self.processor.apply_chat_template(
-            message, tokenize=False, add_generation_prompt=True,
-            chat_template=chat_template if self.processor.chat_template is None else self.processor.chat_template,
-        )
-        image_inputs, video_inputs = process_vision_info(message)
+
+        texts = [
+            self.processor.apply_chat_template(
+                message, tokenize=False, add_generation_prompt=True,
+                chat_template=chat_template if self.processor.chat_template is None else self.processor.chat_template,
+            ) for message in messages
+        ]
+        image_inputs, video_inputs = process_vision_info(messages)
         inputs = self.processor(
-            text=[text],
+            text=texts,
             images=image_inputs,
             videos=video_inputs,
             padding=True,
@@ -302,8 +316,8 @@ class MSD(Qwen2VLPreTrainedModel):
         ).to(self.device)
 
         logits = self.__call__(**inputs).logits.cpu()
-
-        return LABELS_MAP[torch.argmax(logits, dim=-1).item()]
+        outputs = [LABELS_MAP[id_max] for id_max in torch.argmax(logits, dim=-1)]
+        return {key:output for key,output in zip(list(samples.keys()), outputs)}
 
 
 

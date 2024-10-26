@@ -119,7 +119,7 @@ def create_infer_prompt(processor, items, image_path):
     return inputs
 
 
-def inference_llm(model, processor, input_path_annote, image_path, output_path, batch):
+def inference_llm(model, processor, input_path_annote, image_path, output_path, batch_size):
     output_file_name = output_path.split("/")[-1].split(".")[0]
     with open(input_path_annote, "r", encoding='utf-8') as f:
         data = json.load(f)
@@ -134,8 +134,8 @@ def inference_llm(model, processor, input_path_annote, image_path, output_path, 
         result = {key:{} for key in data.keys()}
     error_keys = []
     
-    total_batches = (len(data) + batch - 1) // batch
-    for batch in tqdm(get_n_items_at_a_time(data, batch), total=total_batches):
+    total_batches = (len(data) + batch - 1) // batch_size
+    for batch in tqdm(get_n_items_at_a_time(data, batch_size), total=total_batches):
         items = group_subitems_by_key(batch)
         try:
             inputs = create_infer_prompt(processor, items, image_path).to(model.device)

@@ -16,11 +16,20 @@ LABELS_MAP = {
 
 
 class MSDDataloader(Dataset):
-    def __init__(self, annotate_path, image_path):
-        with open(annotate_path, "r") as f:
-            self.annotate = list(json.load(f).values())
+    def __init__(self, annotate_paths, image_path, labels_map = None):
+        self.annotate = []
+        for annotate_path in annotate_paths:
+            with open(annotate_path, "r") as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    self.annotate += data
+                elif isinstance(data, dict):
+                    self.annotate += list(data.values())
+                else:
+                    raise TypeError(f"not support read data in: {type(data)} format")
         random.shuffle(self.annotate)
         self.image_path = image_path
+        self.labels_map = labels_map if labels_map else LABELS_MAP
         self.cached_data_dict = {}
 
 
@@ -46,11 +55,17 @@ class MSDDataloader(Dataset):
             }
         ]
 
-        label = LABELS_MAP[self.annotate[idx]["label"]]
+        label = self.labels_map[self.annotate[idx]["label"]]
 
         self.cached_data_dict[idx] = (message, label)
 
         return message, label
+    
+    def calculate_class_ratio(self):
+        ratio = {key: 0 for key in LABELS_MAP.keys}
+        for sample in self.annotate:
+            ratio[sample["label"]] += 1
+        return ratio
     
 
 if __name__ == "__main__":

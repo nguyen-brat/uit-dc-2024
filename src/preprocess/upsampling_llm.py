@@ -2,6 +2,11 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 import argparse
 import json
+from tqdm import tqdm
+import re
+
+def contains_chinese(text):
+  return bool(re.search(r"[\u4e00-\u9fff]+", text))
 
 few_shot_prompt = "Viết lại 10 caption từ một caption được cung cấp cho một bài đăng trên facebook\
 . Hãy đảm bảo nội dung không thay đổi nhưng từ ngữ dùng phải khác hoàn toàn câu caption cũ\
@@ -31,15 +36,15 @@ Xiumin bất ngờ lộ diện tại Hải Phòng, visual đỉnh cao khiến fa
 
 prompt = "Viết lại {num} caption từ một caption được cung cấp cho một bài đăng trên facebook\
 . Hãy đảm bảo nội dung không thay đổi nhưng từ ngữ dùng phải khác hoàn toàn câu caption cũ\
-. Mỗi câu caption viết lại được cách nhau bằng \"\\n\". Không liệt kê thứ tự các câu caption được viết lại\
+. Mỗi câu caption viết lại được cách nhau bằng \"\\n###\\n\". Không liệt kê thứ tự các câu caption được viết lại\
 . Câu caption cần viết lại là: {caption}"
 
-def generate_sample(caption, model, tokenizer):
+def generate_sample(caption, model, tokenizer, num_upsample):
     messages = [
         {"role": "system", "content": "You are a helpful AI assistant. Answer in proper Vietnamese."},
         {"role": "user", "content": few_shot_prompt},
         {"role": "assistant", "content": few_shot_answer},
-        {"role": "user", "content": prompt.format(caption=caption)},
+        {"role": "user", "content": prompt.format(caption=caption, num=num_upsample)},
     ]
     text = tokenizer.apply_chat_template(
         messages,
@@ -50,22 +55,25 @@ def generate_sample(caption, model, tokenizer):
 
     generated_ids = model.generate(
         **model_inputs,
-        max_new_tokens=512,
-        temperature=0.7,
-        k=7,
-        top_p=0.6,
+        max_new_tokens=4096,
+        temperature=0.5,
+        top_k=5,
+        top_p=0.5,
+        # repetition_penalty=1.5,
     )
     generated_ids = [
         output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
     ]
 
-    response = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
-    return response.split("\n###\n")
+    responses = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
+    responses = responses.split("\n###\n")
+    responses = [response for response in responses if not contains_chinese(response)]
+    return responses
 
 def sort_by_len_func(sample):
     return len(sample["caption"])
 
-def up_sampling(input_path, output_path, model, tokenizer, num_sample_used, label_type):
+def up_sampling(input_path, output_path, model, tokenizer, num_sample_used, label_type, num_upsample):
     with open(input_path, "r", encoding='utf-8') as f:
         data = list(json.load(f).values())
     data = [sample for sample in data if sample["label"]==label_type]
@@ -74,8 +82,8 @@ def up_sampling(input_path, output_path, model, tokenizer, num_sample_used, labe
     data.sort(reverse=True, key=sort_by_len_func)
     data = data[:num_sample_used]
 
-    for sample in data:
-        generated_captions = generate_sample(sample["caption"], model, tokenizer)
+    for sample in tqdm(data):
+        generated_captions = generate_sample(sample["caption"], model, tokenizer, num_upsample)
         for caption in generated_captions:
             new_data.append({
                 "image": sample["image"],
@@ -84,10 +92,8 @@ def up_sampling(input_path, output_path, model, tokenizer, num_sample_used, labe
                 "ocr": sample["ocr"]
             })
 
-    umsampling_data = data + new_data
-
-    with open(output_path, "w", encoding='utf-8') as f:
-        json.dump(umsampling_data, f, ensure_ascii=False, indent=4)
+        with open(output_path, "w", encoding='utf-8') as f:
+            json.dump(new_data, f, ensure_ascii=False, indent=4)
 
     return None
 
@@ -96,8 +102,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--label_type", type=str, default="text-sarcasm")
     parser.add_argument("--num_sample_used", type=int, default="60")
-    parser.add_argument("--input_file_path", type=str, default="data/public_test/vimmsd-public-test.json")
-    parser.add_argument("--output_file_path", type=str, default="data/public_test/vimmsd-public-test_01.json")
+    parser.add_argument("--num_upsample", type=int, default="10")
+    parser.add_argument("--input_path", type=str, default="data/public_train/ocr_llm_fix_train.json")
+    parser.add_argument("--output_path", type=str, default="data/public_train/ocr_llm_fix_train_text_upsample.json")
     args = parser.parse_args()
 
 
@@ -110,4 +117,4 @@ if __name__ == "__main__":
     )
     tokenizer = AutoTokenizer.from_pretrained(model_name)
 
-    _ = up_sampling(args.input_path, args.output_path, model, tokenizer, args.num_sample_used, args.label_type)
+    _ = up_sampling(args.input_path, args.output_path, model, tokenizer, args.num_sample_used, args.label_type, args.num_upsample)

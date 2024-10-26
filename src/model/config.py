@@ -16,6 +16,7 @@ class MSDConfig(PretrainedConfig):
         num_class=4,
         min_pixels=None,
         max_pixels=None,
+        class_ratio=None,
         model_kwargs={
             "attn_implementation": "sdpa",
         },
@@ -27,6 +28,7 @@ class MSDConfig(PretrainedConfig):
         self.model_kwargs = model_kwargs
         self.min_pixels = min_pixels
         self.max_pixels = max_pixels
+        self.class_ratio = class_ratio
         self.update(AutoConfig.from_pretrained(base_model).to_dict())
         super().__init__(**kwargs)
 
