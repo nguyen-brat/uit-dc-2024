@@ -16,7 +16,7 @@ LABELS_MAP = {
 
 
 class MSDDataloader(Dataset):
-    def __init__(self, annotate_paths, image_path, labels_map = None):
+    def __init__(self, annotate_paths, image_path, labels_map = None, ignore_class = None):
         self.annotate = []
         for annotate_path in annotate_paths:
             with open(annotate_path, "r") as f:
@@ -61,10 +61,12 @@ class MSDDataloader(Dataset):
 
         return message, label
     
-    def calculate_class_ratio(self):
-        ratio = {key: 0 for key in LABELS_MAP.keys}
+    def calculate_class_ratio(self, inver_labels_map):
+        ratio = {key: 0 for key in inver_labels_map.values()}
         for sample in self.annotate:
-            ratio[sample["label"]] += 1
+            id_map = self.labels_map[sample["label"]]
+            iver_label = inver_labels_map[id_map]
+            ratio[iver_label] += 1
         return ratio
     
 

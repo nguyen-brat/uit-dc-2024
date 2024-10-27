@@ -7,6 +7,7 @@ import torch.nn.functional as F
 from typing import Optional, List
 import functools
 from os.path import join as osp
+from dataclasses import dataclass
 import math
 from torch.utils.checkpoint import checkpoint
 
@@ -15,6 +16,46 @@ from .base import Qwen2VLHL, MSDCrossEncoderLayer
 from ..dataloader.prompt import SYSTEM_PROMPT, USER_PROMPT
 from qwen_vl_utils import process_vision_info
 from transformers import Trainer, LlamaForCausalLM
+
+class LabelSmoothedCrossEntropyLoss(nn.Module):
+    def __init__(self, smoothing=0.1, weight=None):
+        """
+        Args:
+            smoothing (float): Label smoothing factor (0 means no smoothing)
+            weight (torch.Tensor): Class weights for imbalanced datasets
+        """
+        super().__init__()
+        self.smoothing = smoothing
+        self.weight = weight
+        self.confidence = 1.0 - smoothing
+
+    def forward(self, logits, labels):
+        num_classes = logits.size(-1)
+        
+        # Create smoothed labels
+        with torch.no_grad():
+            # Create a tensor of size (batch_size, num_classes) filled with smoothing value
+            smooth_labels = torch.full(logits.size(), self.smoothing / (num_classes - 1),
+                                    device=logits.device)
+            # Fill in the confidence value at the correct position
+            smooth_labels.scatter_(1, labels.unsqueeze(1), self.confidence)
+
+        # Apply log softmax
+        log_probs = torch.nn.functional.log_softmax(logits, dim=-1)
+        # If weights are provided, apply them to the loss
+        if self.weight is not None:
+            # Expand weights to match batch size
+            weights_batch = self.weight.unsqueeze(0).expand(logits.size(0), -1)
+            # Weight the log probabilities
+            weighted_log_probs = log_probs * weights_batch
+            # Calculate weighted loss
+            loss = -(smooth_labels * weighted_log_probs).sum(dim=-1).mean()
+        else:
+            # Calculate unweighted loss
+            loss = -(smooth_labels * log_probs).sum(dim=-1).mean()
+            
+        return loss
+
 
 class FocalLoss(nn.Module):
     def __init__(self, alpha=None, gamma=2.0, reduction='mean'):
@@ -196,41 +237,20 @@ class MSD(Qwen2VLPreTrainedModel):
         return mean
     
 
-    def compute_loss(self, logits, labels):
-        '''
-        weights = {
-            'multi-sarcasm': 1/√0.167 ≈ 2.45,
-            'not-sarcasm': 1/√0.078 ≈ 3.58,
-            'image-sarcasm': 1/√0.005 ≈ 14.14,
-            'text-sarcasm': 1/√0.00018 ≈ 74.54
-        }
-        '''
-        # custom_alpha = torch.tensor([
-        #     0.2,  # multi-sarcasm
-        #     0.15,  # not-sarcasm
-        #     0.30,  # image-sarcasm
-        #     0.35   # text-sarcasm
-        # ])
-        
-        # # Initialize focal loss with recommended parameters
-        # criterion = FocalLoss(
-        #     alpha=custom_alpha,  # Can be set to None to use inverse sqrt weighting
-        #     gamma=2.5,          # Recommended value for this case
-        #     reduction='mean'
-        # )
-        
-        # normal loss
+    def compute_loss(self, logits, labels, smoothing=0.1):
         if self.class_ratio:
-            weights = 1/torch.sqrt(torch.tensor(self.class_ratio))
+            weights = 1/torch.sqrt(torch.tensor(self.class_ratio, device=logits.device, dtype=logits.dtype))
             weights = weights/weights.sum()
         else:
-            weights = torch.tensor([1/math.sqrt(3813), 1/math.sqrt(5446), 1/math.sqrt(2619), 1/math.sqrt(682)], device=logits.device)
+            weights = torch.tensor([1/math.sqrt(3813), 1/math.sqrt(5446), 
+                                1/math.sqrt(2619), 1/math.sqrt(682)], 
+                                device=logits.device, dtype=logits.dtype)
             weights = weights/weights.sum()
-        criterion = CrossEntropyLoss(weight=weights)
-
+        
+        # Use custom loss with label smoothing and weights
+        criterion = LabelSmoothedCrossEntropyLoss(smoothing=smoothing, weight=weights)
         loss = criterion(logits, labels)
         return loss
-
 
     def freeze_base(self):
         for p in self.model.parameters():
@@ -284,8 +304,8 @@ class MSD(Qwen2VLPreTrainedModel):
             2: "image-sarcasm",
             3: "text-sarcasm",
         }
-        if self.id2label:
-            LABELS_MAP = self.id2label
+        if self.config.id2label:
+            LABELS_MAP = self.config.id2label
 
         messages = [
             [
@@ -316,7 +336,7 @@ class MSD(Qwen2VLPreTrainedModel):
         ).to(self.device)
 
         logits = self.__call__(**inputs).logits.cpu()
-        outputs = [LABELS_MAP[id_max] for id_max in torch.argmax(logits, dim=-1)]
+        outputs = [LABELS_MAP[id_max.item()] for id_max in torch.argmax(logits, dim=-1)]
         return {key:output for key,output in zip(list(samples.keys()), outputs)}
 
 

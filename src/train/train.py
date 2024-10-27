@@ -64,9 +64,11 @@ def calculate_f1_scores(y_true, y_pred, inverse_labels_map = None):
     }
     if inverse_labels_map:
         label_names = inverse_labels_map
-    cm = confusion_matrix(y_true, y_pred, labels=[0, 1, 2, 3])
+    for key, item in label_names.items():
+        label_names[key] = label_names[key] + "_f1"
+    cm = confusion_matrix(y_true, y_pred, labels=list(inverse_labels_map.keys()))
     f1_scores = {}
-    for idx in range(4):
+    for idx in range(len(inverse_labels_map)):
         tp = cm[idx, idx]
         fp = np.sum(cm[:, idx]) - tp
         fn = np.sum(cm[idx, :]) - tp
@@ -86,11 +88,12 @@ def compute_metrics(eval_pred, inverse_labels_map):
     predictions = np.argmax(output, axis=-1)
     confusion_output = calculate_f1_scores(labels, predictions, inverse_labels_map)
     return dict(
-        multi_sarcasm_f1=confusion_output["multi-sarcasm"],
-        not_sarcasm_f1=confusion_output["not-sarcasm"],
-        text_sarcasm_f1=confusion_output["text-sarcasm"],
-        image_sarcasm_f1=confusion_output["image-sarcasm"],
-        f1=f1_score(labels, predictions, average='macro')
+        # multi_sarcasm_f1=confusion_output["multi-sarcasm"],
+        # not_sarcasm_f1=confusion_output["not-sarcasm"],
+        # text_sarcasm_f1=confusion_output["text-sarcasm"],
+        # image_sarcasm_f1=confusion_output["image-sarcasm"],
+        f1=f1_score(labels, predictions, average='macro'),
+        **confusion_output
     )
     #return metric.compute(predictions=predictions, references=labels, average="macro")
 
@@ -185,7 +188,8 @@ def train(config):
     if getattr(training_args, "seed", None):
         set_seed_all(training_args.seed)
 
-    inver_labels_map = {value: key for key, value in data_args.labels_map.items()}
+    inver_labels_map = data_args.pop("inver_labels_map", None)
+    inver_labels_map = {int(k): v for k, v in inver_labels_map.items()}
     ################### Load data
     min_pixels=data_args.pop("min_pixels", None)
     max_pixels=data_args.pop("max_pixels", None)
@@ -215,7 +219,7 @@ def train(config):
     ################### Load model
     if model_args.base_model:
         labels_ratio = {}
-        for label_class, ratio in train_dataloader.calculate_class_ratio().items():
+        for label_class, ratio in train_dataloader.calculate_class_ratio(inver_labels_map).items():
             labels_ratio[data_args.labels_map[label_class]] = ratio
         labels_ratio = list(dict(sorted(labels_ratio.items(), reverse=False)).values())
         quantization_config=None
@@ -265,7 +269,7 @@ def train(config):
     else:
         raise ValueError("You must specify embedder_based and thinker_based")
     
-    # print(model)
+    print(model)
     # if train gradient checkpoint must enable input require_grad
     if training_args.gradient_checkpointing:
         model.gradient_checkpointing_enable(training_args.gradient_checkpointing_kwargs)

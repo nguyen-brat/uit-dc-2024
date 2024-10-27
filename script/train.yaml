@@ -1,24 +1,27 @@
 data_args:
   train_data:
-    annotate_paths: [
-      "data/public_train/ocr_llm_fix_train.json",
-      "data/public_train/ocr_llm_fix_train_image_upsample.json",
-      "data/public_train/ocr_llm_fix_train_text_upsample.json"
-    ]
-    image_path: "data/public_train/train-images"
-    # annotate_paths: ["data/warn_up/ocr_llm.json"]
-    # image_path: "data/warn_up/warmup-images"
+    # annotate_paths: [
+    #   "data/public_train/ocr_llm_fix_train.json",
+    #   "data/public_train/ocr_llm_fix_train_image_upsample.json",
+    #   "data/public_train/ocr_llm_fix_train_text_upsample.json"
+    # ]
+    # image_path: "data/public_train/train-images"
+    annotate_paths: ["data/warn_up/ocr_llm.json"]
+    image_path: "data/warn_up/warmup-images"
   val_data:
-    annotate_paths: ["data/public_train/ocr_llm_fix_test.json"]
-    image_path: "data/public_train/train-images"
-    # annotate_paths: ["data/warn_up/ocr_llm.json"]
-    # image_path: "data/warn_up/warmup-images"
+    # annotate_paths: ["data/public_train/ocr_llm_fix_test.json"]
+    # image_path: "data/public_train/train-images"
+    annotate_paths: ["data/warn_up/ocr_llm.json"]
+    image_path: "data/warn_up/warmup-images"
   max_length: 2500
   labels_map:
     multi-sarcasm: 0
     not-sarcasm: 1
-    image-sarcasm: 2
-    text-sarcasm: 3
+    image-sarcasm: 0
+    text-sarcasm: 0
+  inver_labels_map:
+    "0": "multi-sarcasm"
+    "1": "not-sarcasm"
   # min_pixels: 200704
   # max_pixels: 1003520
   # cache_dir: "./data_cache"
@@ -37,20 +40,20 @@ training_args:
   torch_compile_backend: "cudagraphs"
   use_liger_kernel: False # BUG if True
   quantization: 0 # 0 mean not use quantization 4 mean 4 bit 8 mean 8 bit
-  output_dir: "model/hf/qwen2_vl_cls_qwen2_reason_base_upsample_ds_weight_ce_loss"
+  output_dir: "model/dump/dump1"
   overwrite_output_dir: true
-  num_train_epochs: 5
+  num_train_epochs: 1
   per_device_train_batch_size: 2
   per_device_eval_batch_size: 2
-  gradient_accumulation_steps: 32
+  gradient_accumulation_steps: 8
   dataloader_num_workers: 36
   do_train: true
   do_eval: true
   eval_strategy: "steps" # Evaluation is done (and logged) every eval_steps
   logging_strategy: "steps"
   save_strategy: "steps"
-  eval_steps: 10
-  save_steps: 50
+  eval_steps: 1
+  save_steps: 2
   save_total_limit: 5
   # seed: null
   label_names: ["labels"]
@@ -59,7 +62,7 @@ training_args:
   prediction_loss_only: False
   metric_for_best_model: "f1"
   neftune_noise_alpha: 5
-  label_smoothing_factor: 0.1
+  # label_smoothing_factor: 0.1
   # optim: "paged_lion_8bit"
 
 model_args:

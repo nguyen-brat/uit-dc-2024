@@ -40,7 +40,6 @@ class MSDDataCollator:
         )
 
         inputs["labels"] = torch.tensor(labels)
-
         return inputs
     
 

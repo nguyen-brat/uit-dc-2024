@@ -1,18 +1,18 @@
 data_args:
   train_data:
-    annotate_paths: [
-      "data/public_train/ocr_llm_fix_train.json",
-      "data/public_train/ocr_llm_fix_train_image_upsample.json",
-      "data/public_train/ocr_llm_fix_train_text_upsample.json"
-    ]
-    image_path: "data/public_train/train-images"
-    # annotate_paths: ["data/warn_up/ocr_llm.json"]
-    # image_path: "data/warn_up/warmup-images"
+    # annotate_paths: [
+    #   "data/public_train/ocr_llm_fix_train.json",
+    #   "data/public_train/ocr_llm_fix_train_image_upsample.json",
+    #   "data/public_train/ocr_llm_fix_train_text_upsample.json"
+    # ]
+    # image_path: "data/public_train/train-images"
+    annotate_paths: ["data/warn_up/ocr_llm.json"]
+    image_path: "data/warn_up/warmup-images"
   val_data:
-    annotate_paths: ["data/public_train/ocr_llm_fix_test.json"]
-    image_path: "data/public_train/train-images"
-    # annotate_paths: ["data/warn_up/ocr_llm.json"]
-    # image_path: "data/warn_up/warmup-images"
+    # annotate_paths: ["data/public_train/ocr_llm_fix_test.json"]
+    # image_path: "data/public_train/train-images"
+    annotate_paths: ["data/warn_up/ocr_llm.json"]
+    image_path: "data/warn_up/warmup-images"
   max_length: 2500
   labels_map:
     multi-sarcasm: 0

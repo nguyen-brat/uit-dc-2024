@@ -52,10 +52,10 @@ def inference(args, model):
         data = json.load(f)
 
     total_batches = (len(data) + args.batch_size - 1) // args.batch_size
-    for batch in tqdm(get_n_items_at_a_time(data, args.batch_size), total_batches):
+    for batch in tqdm(get_n_items_at_a_time(data, args.batch_size), total=total_batches):
         caterories = model.predict(batch, args.image_path)
-        for key, result in caterories.items():
-            result["results"][key] = result
+        for key, caterory in caterories.items():
+            result["results"][key] = caterory
 
         with open(args.output_dir, "w", encoding="utf") as f:
             json.dump(result, f, indent=4, ensure_ascii=False)
@@ -67,10 +67,9 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=2)
     parser.add_argument("--annotation_path", type=str, default="data/public_test/ocr_llm_fix.json")
     parser.add_argument("--image_path", type=str, default="data/public_test/dev-images")
-    parser.add_argument("--output_dir", type=str, default="submit/results.json")
+    parser.add_argument("--output_dir", type=str, default="submit/results_dump.json")
     parser.add_argument("--phase", type=str, default="dev")
     args = parser.parse_args()
-
 
     # model = MSD.from_pretrained(args.model_path, torch_dtype="auto", device_map="auto").eval()
     # print(f'model dtype is: {model.dtype}')
@@ -87,5 +86,5 @@ if __name__ == "__main__":
     # )
     # model = dispatch_model(model, device_map=device_map)
     # peft_model = PeftModel.from_pretrained(model, model_id=args.adapter_path, device_map="auto")
-    model = MSD.from_pretrained("model/hf/qwen2_vl_cls_qwen2_reason_base_focal_loss/merged_model", torch_dtype="auto", device_map="auto").eval()
+    model = MSD.from_pretrained(args.model_path, torch_dtype="auto", device_map="auto").eval()
     inference(args, model)
