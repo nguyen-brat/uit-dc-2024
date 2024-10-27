@@ -13,4 +13,4 @@ accelerate launch --config_file $DEEPSPEED2_PATH ${DIR}/train.py --config_path $
 
 # train classify multi-sarcasm and text + image sarcasm
 
-accelerate launch --config_file $DEEPSPEED2_PATH ${DIR}/train.py --config_path $TRAIN_CONFIG_PATH_2
+# accelerate launch --config_file $DEEPSPEED2_PATH ${DIR}/train.py --config_path $TRAIN_CONFIG_PATH_2

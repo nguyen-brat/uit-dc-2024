@@ -1,24 +1,23 @@
 data_args:
   train_data:
-    # annotate_paths: [
-    #   "data/public_train/ocr_llm_fix_train.json",
-    #   "data/public_train/ocr_llm_fix_train_image_upsample.json",
-    #   "data/public_train/ocr_llm_fix_train_text_upsample.json"
-    # ]
-    # image_path: "data/public_train/train-images"
-    annotate_paths: ["data/warn_up/ocr_llm.json"]
-    image_path: "data/warn_up/warmup-images"
+    annotate_paths: [
+      "data/public_train/ocr_llm_fix_train.json",
+      #"data/public_train/ocr_llm_fix_train_image_upsample.json",
+      #"data/public_train/ocr_llm_fix_train_text_upsample.json"
+    ]
+    image_path: "data/public_train/train-images"
   val_data:
-    # annotate_paths: ["data/public_train/ocr_llm_fix_test.json"]
-    # image_path: "data/public_train/train-images"
-    annotate_paths: ["data/warn_up/ocr_llm.json"]
-    image_path: "data/warn_up/warmup-images"
+    annotate_paths: ["data/public_train/ocr_llm_fix_test.json"]
+    image_path: "data/public_train/train-images"
   max_length: 2500
   labels_map:
     multi-sarcasm: 0
     not-sarcasm: 1
     image-sarcasm: 0
     text-sarcasm: 0
+  inver_labels_map:
+    "0": "multi-sarcasm"
+    "1": "not-sarcasm"
   # min_pixels: 200704
   # max_pixels: 1003520
   # cache_dir: "./data_cache"
@@ -50,8 +49,8 @@ training_args:
   logging_strategy: "steps"
   save_strategy: "steps"
   eval_steps: 10
-  save_steps: 50
-  save_total_limit: 5
+  save_steps: 10
+  save_total_limit: 6
   # seed: null
   label_names: ["labels"]
   resume_from_checkpoint: False
@@ -59,7 +58,7 @@ training_args:
   prediction_loss_only: False
   metric_for_best_model: "f1"
   neftune_noise_alpha: 5
-  label_smoothing_factor: 0.1
+  # label_smoothing_factor: 0.1
   # optim: "paged_lion_8bit"
 
 model_args:
@@ -84,10 +83,10 @@ lora_args:
   target_modules: [
     .*\.down_proj,  # Add $ to match end of string
     .*\.gate_proj,
-    # .*\.v_proj,
+    .*\.v_proj,
     .*\.up_proj,
     .*\.k_proj,
-    # .*\.o_proj,
+    .*\.o_proj,
     .*\.q_proj
   ] # "all-linear"
   modules_to_save: [
@@ -96,7 +95,7 @@ lora_args:
   ]
 
 wandb_args:
-  run_name: "qwen2-vl-reasoning-tuned-based_dump" # "My goodfellas"
+  run_name: "qwen2-vl-reasoning-tuned-based-hierarchiecal" # "My goodfellas"
   logging_steps: 1
   report_to: "wandb"
 

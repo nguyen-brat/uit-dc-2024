@@ -65,7 +65,8 @@ def calculate_f1_scores(y_true, y_pred, inverse_labels_map = None):
     if inverse_labels_map:
         label_names = inverse_labels_map
     for key, item in label_names.items():
-        label_names[key] = label_names[key] + "_f1"
+        if "_f1" not in label_names[key]:
+            label_names[key] = label_names[key] + "_f1"
     cm = confusion_matrix(y_true, y_pred, labels=list(inverse_labels_map.keys()))
     f1_scores = {}
     for idx in range(len(inverse_labels_map)):
