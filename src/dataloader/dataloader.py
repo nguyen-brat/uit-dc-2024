@@ -16,17 +16,25 @@ LABELS_MAP = {
 
 
 class MSDDataloader(Dataset):
-    def __init__(self, annotate_paths, image_path, labels_map = None, ignore_class = None):
-        self.annotate = []
+    def __init__(self, annotate_paths, image_path, labels_map = None, ignore_labels = None):
+        self._annotate = []
         for annotate_path in annotate_paths:
             with open(annotate_path, "r") as f:
                 data = json.load(f)
                 if isinstance(data, list):
-                    self.annotate += data
+                    self._annotate += data
                 elif isinstance(data, dict):
-                    self.annotate += list(data.values())
+                    self._annotate += list(data.values())
                 else:
                     raise TypeError(f"not support read data in: {type(data)} format")
+        
+        self.annotate = []
+        for sample in self._annotate:
+            if sample["label"] in ignore_labels:
+                pass
+            else:
+                self.annotate.append(sample)
+
         random.shuffle(self.annotate)
         self.image_path = image_path
         self.labels_map = labels_map if labels_map else LABELS_MAP

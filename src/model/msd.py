@@ -246,9 +246,9 @@ class MSD(Qwen2VLPreTrainedModel):
                                 1/math.sqrt(2619), 1/math.sqrt(682)], 
                                 device=logits.device, dtype=logits.dtype)
             weights = weights/weights.sum()
-        
         # Use custom loss with label smoothing and weights
-        criterion = LabelSmoothedCrossEntropyLoss(smoothing=smoothing, weight=weights)
+        # criterion = LabelSmoothedCrossEntropyLoss(smoothing=smoothing, weight=weights)
+        criterion = CrossEntropyLoss(weight=weights)
         loss = criterion(logits, labels)
         return loss
 

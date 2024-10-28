@@ -2,7 +2,7 @@ data_args:
   train_data:
     annotate_paths: [
       "data/public_train/ocr_llm_fix_train.json",
-      "data/public_train/ocr_llm_fix_train_image_upsample.json",
+      #"data/public_train/ocr_llm_fix_train_image_upsample.json",
       "data/public_train/ocr_llm_fix_train_text_upsample.json"
     ]
     image_path: "data/public_train/train-images"
@@ -15,13 +15,12 @@ data_args:
     # image_path: "data/warn_up/warmup-images"
   max_length: 2500
   labels_map:
-    multi-sarcasm: 0
-    image-sarcasm: 1
+    image-sarcasm: 0
     text-sarcasm: 1
   inver_labels_map:
-    "0": "multi-sarcasm"
-    "1": "image-sarcasm"
-  ignore_labels: not-sarcasm
+    "0": "image-sarcasm"
+    "1": "text-sarcasm"
+  ignore_labels: ["not-sarcasm", "multi-sarcasm"]
   # min_pixels: 200704
   # max_pixels: 1003520
   # cache_dir: "./data_cache"
@@ -30,7 +29,7 @@ training_args:
   freeze_base: False
   bf16: True
   use_lora: True
-  learning_rate: 5e-5
+  learning_rate: 5e-6
   lr_scheduler_type: "cosine"
   warmup_ratio: 0.1
   weight_decay: 0.0
@@ -40,7 +39,7 @@ training_args:
   torch_compile_backend: "cudagraphs"
   use_liger_kernel: False # BUG if True
   quantization: 0 # 0 mean not use quantization 4 mean 4 bit 8 mean 8 bit
-  output_dir: "model/hierarchical/cls_multi_sarcasm_vs_image_text_sarcasm"
+  output_dir: "model/hierarchical/cls_image_vs_text_sarcasm"
   overwrite_output_dir: true
   num_train_epochs: 5
   per_device_train_batch_size: 2
@@ -52,8 +51,8 @@ training_args:
   eval_strategy: "steps" # Evaluation is done (and logged) every eval_steps
   logging_strategy: "steps"
   save_strategy: "steps"
-  eval_steps: 10
-  save_steps: 10
+  eval_steps: 2
+  save_steps: 2
   save_total_limit: 5
   # seed: null
   label_names: ["labels"]

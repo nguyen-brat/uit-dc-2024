@@ -220,7 +220,11 @@ def train(config):
     ################### Load model
     if model_args.base_model:
         labels_ratio = {}
-        for label_class, ratio in train_dataloader.calculate_class_ratio(inver_labels_map).items():
+        label_class_ratio = train_dataloader.calculate_class_ratio(inver_labels_map)
+        print("************************************")
+        print(label_class_ratio)
+        print("************************************")
+        for label_class, ratio in label_class_ratio.items():
             labels_ratio[data_args.labels_map[label_class]] = ratio
         labels_ratio = list(dict(sorted(labels_ratio.items(), reverse=False)).values())
         quantization_config=None
