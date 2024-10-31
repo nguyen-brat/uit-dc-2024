@@ -137,7 +137,11 @@ Given not-Sarcasm is any samples that contain one or more signs in the story (co
 3. Does NOT contain linguistic or visual cues typically associated with sarcasm.
 
 Given a Facebook post contains an image <image>, the reference text in the image is: {ocr} and a caption: {caption}. \
-Explain step-by-step by analysis the image and caption then give the conclusion that is post have multi-sarcasm, not-sarcasm, image-sarcasm or text-sarcasm meaning.'''
+Explain step-by-step by analysis the image and caption then give the conclusion that is post have multi-sarcasm, not-sarcasm, image-sarcasm or text-sarcasm meaning. The post is classified as:
+- text-sarcasm: if only the content in the caption is sarcastic and the photo and text in the photo are not sarcastic or supportive and have the opposite meaning of the caption.
+- image-sarcasm: if the photo or content in the photo contains signs of sarcasm, criticism, belittling or making fun of someone and the caption provided does not contain any signs of sarcasm and has all the elements of not-sarcasm.
+- multi-sarcasm: if both the caption and the photo of the post contain elements of sarcasm or the caption supports the semantics of the photo's sarcasm, which can be text in the photo and vice versa.
+- not-sarcasm: if both the caption and the photo do not contain signs of sarcasm as provided above. The post has a clear meaning without sarcasm and has the signs of not-sarcasm provided above.'''
 
 TRAIN_SYS_RESPONSE = '''{reason}
 

@@ -52,12 +52,6 @@ def inference(args):
     data_image_text = {}
     with open(args.annotation_path, "r", encoding='utf-8') as f:
         data = json.load(f)
-    for key, item in data.items():
-        if item["label"] is not "not-sarcasm":
-            data_multi_image_text[key] = item
-    for key, item in data_multi_image_text.items():
-        if item["label"] is not "multi-sarcasm":
-            data_image_text[key] = item
 
     print("hierarchiecal run image not vs multi-sarcasm")
     not_multi_sarcasm_model = MSD.from_pretrained(args.model_path_not_multi, torch_dtype=torch.bfloat16, device_map = "auto")
@@ -66,23 +60,31 @@ def inference(args):
         caterories = not_multi_sarcasm_model.predict(batch, args.image_path)
         for key, caterory in caterories.items():
             result["results"][key] = caterory
+            data[key]["label"] = caterory
         with open(args.output_dir, "w", encoding="utf") as f:
             json.dump(result, f, indent=4, ensure_ascii=False)
     
     del not_multi_sarcasm_model
 
-    print("hierarchiecal  not vs image + text sarcasm")
+    for key, item in data.items():
+        if item["label"] != "not-sarcasm":
+            data_multi_image_text[key] = item
+    print("hierarchiecal  multi vs image + text sarcasm")
     model_multi_image_text = MSD.from_pretrained(args.model_path_multi_image_text, torch_dtype=torch.bfloat16, device_map = "auto")
     total_batches = (len(data_multi_image_text) + args.batch_size - 1) // args.batch_size
     for batch in tqdm(get_n_items_at_a_time(data_multi_image_text, args.batch_size), total=total_batches):
         caterories = model_multi_image_text.predict(batch, args.image_path)
         for key, caterory in caterories.items():
             result["results"][key] = caterory
+            data[key]["label"] = caterory
         with open(args.output_dir, "w", encoding="utf") as f:
             json.dump(result, f, indent=4, ensure_ascii=False)
 
     del model_multi_image_text
 
+    for key, item in data_multi_image_text.items():
+        if item["label"] != "multi-sarcasm":
+            data_image_text[key] = item
     print("hierarchiecal image vs text sarcasm")
     model_image_text = MSD.from_pretrained(args.model_path_image_text, torch_dtype=torch.bfloat16, device_map = "auto")
     total_batches = (len(data_image_text) + args.batch_size - 1) // args.batch_size
@@ -90,15 +92,16 @@ def inference(args):
         caterories = model_image_text.predict(batch, args.image_path)
         for key, caterory in caterories.items():
             result["results"][key] = caterory
+            data[key]["label"] = caterory
         with open(args.output_dir, "w", encoding="utf") as f:
             json.dump(result, f, indent=4, ensure_ascii=False)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model_path_not_multi", type=str, default="model/trained/qwen2_vl_cls_qwen2_reason_base")
-    parser.add_argument("--model_path_multi_image_text", type=str, default="model/trained/qwen2_vl_cls_qwen2_reason_base")
-    parser.add_argument("--model_path_image_text", type=str, default="model/trained/qwen2_vl_cls_qwen2_reason_base")
+    parser.add_argument("--model_path_not_multi", type=str, default="model/hierarchical/cls_multi_not_sarcasm/merged_model")
+    parser.add_argument("--model_path_multi_image_text", type=str, default="model/hierarchical/cls_multi_sarcasm_vs_image_text_sarcasm/merged_model")
+    parser.add_argument("--model_path_image_text", type=str, default="model/hierarchical/cls_image_vs_text_sarcasm/merged_model")
     parser.add_argument("--batch_size", type=int, default=2)
     parser.add_argument("--annotation_path", type=str, default="data/public_test/ocr_llm_fix.json")
     parser.add_argument("--image_path", type=str, default="data/public_test/dev-images")

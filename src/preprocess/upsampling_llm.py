@@ -9,39 +9,39 @@ def contains_chinese(text):
   return bool(re.search(r"[\u4e00-\u9fff]+", text))
 
 few_shot_prompt = "Viết lại 10 caption từ một caption được cung cấp cho một bài đăng trên facebook\
-. Hãy đảm bảo nội dung không thay đổi nhưng từ ngữ dùng phải khác hoàn toàn câu caption cũ\
-. Mỗi câu caption viết lại được cách nhau bằng \"\\n###\\n\". Không liệt kê thứ tự các câu caption được viết lại\
-. Câu caption cần viết lại là: XIUMIN ĐƯỢC FAN TÌNH CỜ BẮT GẶP VỚI VISUAL KHÔNG TUỔI\nAnh cùng ekip đang ở Hải Phòng nghỉ ngơi để chuẩn bị cho Đại nhạc hội hoành tráng, khai trương Phố đi bộ - Công viên Vũ Yên tại Thành phố Đảo Hoàng Gia Vinhomes Royal Island (Vũ Yên, Hải Phòng) vào tối mai (1/6)\nĐược biết, XIUMIN sẽ có buổi tổng duyệt vào lúc 10h (1/6) và trình diễn vào lúc 20h cùng ngày."
+. Hãy đảm bảo nội dung không thay đổi ý nghĩa châm biếm ban đầu của câu nhưng từ ngữ dùng phải khác hoàn toàn câu caption cũ\
+. Mỗi câu caption viết lại được cách nhau bằng \"\\n###\\n\".\
+. Câu caption cần viết lại là: Không có anh, giới giải trí sẽ mất đi một người suốt ngày hay khóc"
 
-few_shot_answer = """Xiumin bất ngờ lộ diện tại Hải Phòng, visual đỉnh cao khiến fan không thể rời mắt! Anh chàng đang cùng ekip chuẩn bị cho Đại nhạc hội khai trương Phố đi bộ - Công viên Vũ Yên vào tối mai (1/6) tại Vinhomes Royal Island. Buổi tổng duyệt sẽ diễn ra lúc 10h và màn trình diễn chính thức sẽ bắt đầu lúc 20h cùng ngày.
+few_shot_answer = """1. Không có anh, showbiz sẽ thiếu đi một người chuyên khóc lóc
 ###
-Tình cờ bắt gặp Xiumin tại Hải Phòng, visual trẻ trung bất chấp thời gian! Nam thần tượng đang ở thành phố hoa phượng đỏ để chuẩn bị cho sự kiện khai trương Phố đi bộ - Công viên Vũ Yên. Fan hãy sẵn sàng cho buổi tổng duyệt lúc 10h và đêm diễn hoành tráng lúc 20h tối mai nhé.
+2. Thiếu anh, làng giải trí sẽ bớt đi một người rơi lệ không ngừng
 ###
-Xiumin xuất hiện bất ngờ tại Hải Phòng, visual đỉnh cao khiến fan phát sốt! Anh chàng đang cùng ekip gấp rút chuẩn bị cho Đại nhạc hội khai trương Phố đi bộ - Công viên Vũ Yên vào tối mai (1/6) tại Vinhomes Royal Island.
+3. Vắng anh, thế giới nghệ thuật sẽ chẳng còn ai hay khóc
 ###
-Xiumin khiến fan bất ngờ khi xuất hiện tại Hải Phòng với visual trẻ trung! Nam thần tượng đang ở thành phố hoa phượng đỏ để chuẩn bị cho sự kiện đặc biệt vào tối mai (1/6). Buổi tổng duyệt sẽ diễn ra lúc 10h và màn trình diễn chính thức sẽ bắt đầu lúc 20h cùng ngày.
+4. Nếu không có anh, làng giải trí sẽ mất đi một người nước mắt ngắn dài
 ###
-May mắn bắt gặp Xiumin tại Hải Phòng, visual không tuổi khiến fan mê mệt! Anh chàng đang cùng ekip chuẩn bị cho Đại nhạc hội khai trương Phố đi bộ - Công viên Vũ Yên. Fan hãy sẵn sàng cho buổi tổng duyệt lúc 10h và đêm diễn hoành tráng lúc 20h tối mai nhé.
+5. Giới showbiz không có anh sẽ chẳng còn ai khóc nhiều đến thế
 ###
-Xiumin bất ngờ lộ diện tại Hải Phòng, visual đỉnh cao khiến fan "đứng ngồi không yên"! Nam thần tượng đang ở thành phố hoa phượng đỏ để chuẩn bị cho sự kiện khai trương Phố đi bộ - Công viên Vũ Yên.
+6. Anh mà không có, giới nghệ sĩ sẽ vắng bóng một người thích khóc nhè
 ###
-Tình cờ gặp Xiumin tại Hải Phòng, visual trẻ trung bất chấp thời gian! Anh chàng đang cùng ekip gấp rút chuẩn bị cho Đại nhạc hội khai trương Phố đi bộ - Công viên Vũ Yên vào tối mai (1/6) tại Vinhomes Royal Island.
+7. Thiếu vắng anh, giới giải trí sẽ chẳng ai còn khóc thường xuyên
 ###
-Xiumin xuất hiện bất ngờ tại Hải Phòng, visual đỉnh cao khiến fan "tan chảy"! Nam thần tượng đang ở thành phố hoa phượng đỏ để chuẩn bị cho sự kiện đặc biệt vào tối mai (1/6). Buổi tổng duyệt sẽ diễn ra lúc 10h và màn trình diễn chính thức sẽ bắt đầu lúc 20h cùng ngày.
+8. Không anh, ngành giải trí sẽ thiếu đi một người lúc nào cũng sụt sùi
 ###
-May mắn bắt gặp Xiumin tại Hải Phòng, visual không tuổi khiến fan "phát cuồng"! Anh chàng đang cùng ekip chuẩn bị cho Đại nhạc hội khai trương Phố đi bộ - Công viên Vũ Yên. Fan hãy sẵn sàng cho buổi tổng duyệt lúc 10h và đêm diễn hoành tráng lúc 20h tối mai nhé.
+9. Giới giải trí sẽ buồn chán nếu thiếu một người khóc lóc như anh
 ###
-Xiumin bất ngờ lộ diện tại Hải Phòng, visual đỉnh cao khiến fan "điên đảo"! Nam thần tượng đang ở thành phố hoa phượng đỏ để chuẩn bị cho sự kiện khai trương Phố đi bộ - Công viên Vũ Yên."""
+10. Nếu anh không có, làng giải trí sẽ không còn ai dễ xúc động đến vậy"""
 
 
 prompt = "Viết lại {num} caption từ một caption được cung cấp cho một bài đăng trên facebook\
-. Hãy đảm bảo nội dung không thay đổi nhưng từ ngữ dùng phải khác hoàn toàn câu caption cũ\
-. Mỗi câu caption viết lại được cách nhau bằng \"\\n###\\n\". Không liệt kê thứ tự các câu caption được viết lại\
+. Hãy đảm bảo nội dung không thay đổi ý nghĩa châm biếm ban đầu của câu nhưng từ ngữ dùng phải khác hoàn toàn câu caption cũ\
+. Mỗi câu caption viết lại được cách nhau bằng \"\\n###\\n\".\
 . Câu caption cần viết lại là: {caption}"
 
 def generate_sample(caption, model, tokenizer, num_upsample):
     messages = [
-        {"role": "system", "content": "You are a helpful AI assistant. Answer in proper Vietnamese."},
+        # {"role": "system", "content": "You are a helpful AI assistant. Answer in proper Vietnamese."},
         {"role": "user", "content": few_shot_prompt},
         {"role": "assistant", "content": few_shot_answer},
         {"role": "user", "content": prompt.format(caption=caption, num=num_upsample)},
@@ -55,7 +55,7 @@ def generate_sample(caption, model, tokenizer, num_upsample):
 
     generated_ids = model.generate(
         **model_inputs,
-        max_new_tokens=4096,
+        max_new_tokens=20000,
         temperature=0.5,
         top_k=5,
         top_p=0.5,
@@ -67,7 +67,7 @@ def generate_sample(caption, model, tokenizer, num_upsample):
 
     responses = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
     responses = responses.split("\n###\n")
-    responses = [response for response in responses if not contains_chinese(response)]
+    responses = [" ".join(response.split(" ")[1:]) for response in responses if not contains_chinese(response)]
     return responses
 
 def sort_by_len_func(sample):
@@ -104,11 +104,11 @@ if __name__ == "__main__":
     parser.add_argument("--num_sample_used", type=int, default="60")
     parser.add_argument("--num_upsample", type=int, default="10")
     parser.add_argument("--input_path", type=str, default="data/public_train/ocr_llm_fix_train.json")
-    parser.add_argument("--output_path", type=str, default="data/public_train/ocr_llm_fix_train_text_upsample.json")
+    parser.add_argument("--output_path", type=str, default="data/public_train/ocr_llm_fix_train_text_upsample_x10.json")
     args = parser.parse_args()
 
 
-    model_name = "Qwen/Qwen2.5-7B-Instruct"
+    model_name = "arcee-ai/Arcee-VyLinh"
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
         torch_dtype=torch.bfloat16,

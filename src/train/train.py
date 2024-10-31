@@ -7,6 +7,8 @@ import os
 import json
 import functools
 from tqdm import tqdm
+import torch.nn as nn
+from collections import defaultdict
 
 from sklearn.metrics import f1_score
 from sklearn.metrics import confusion_matrix
@@ -160,6 +162,71 @@ def get_all_linear_layers(model, freeze_vision_tower: bool):
     return list(module_names)
 
 
+def analyze_gradients(model: nn.Module, detailed: bool = True) -> None:
+    """
+    Analyze and print which parameters/modules in a PyTorch model require gradients.
+    
+    Args:
+        model (nn.Module): The PyTorch model to analyze
+        detailed (bool): If True, shows parameter-level details. If False, shows module-level summary
+    """
+    # Collect statistics
+    total_params = 0
+    trainable_params = 0
+    frozen_params = 0
+    
+    # Store module information
+    module_stats = defaultdict(lambda: {"trainable": 0, "frozen": 0, "params": []})
+    
+    # Analyze each named parameter
+    for name, param in model.named_parameters():
+        total_params += param.numel()
+        
+        # Get module name (everything before the last '.')
+        module_name = name.rsplit('.', 1)[0] if '.' in name else 'root'
+        param_name = name.rsplit('.', 1)[1] if '.' in name else name
+        
+        if param.requires_grad:
+            trainable_params += param.numel()
+            module_stats[module_name]["trainable"] += param.numel()
+        else:
+            frozen_params += param.numel()
+            module_stats[module_name]["frozen"] += param.numel()
+            
+        module_stats[module_name]["params"].append({
+            "name": param_name,
+            "shape": list(param.shape),
+            "requires_grad": param.requires_grad,
+            "num_params": param.numel()
+        })
+    
+    # Print summary
+    print(f"\n{'='*50}")
+    print("MODEL GRADIENT ANALYSIS")
+    print(f"{'='*50}")
+    print(f"\nTotal Parameters: {total_params:,}")
+    print(f"Trainable Parameters: {trainable_params:,} ({trainable_params/total_params*100:.2f}%)")
+    print(f"Frozen Parameters: {frozen_params:,} ({frozen_params/total_params*100:.2f}%)")
+    
+    if detailed:
+        print(f"\n{'='*50}")
+        print("DETAILED MODULE ANALYSIS")
+        print(f"{'='*50}")
+        
+        for module_name, stats in module_stats.items():
+            total_module_params = stats["trainable"] + stats["frozen"]
+            print(f"\nModule: {module_name}")
+            print(f"├── Total Parameters: {total_module_params:,}")
+            print(f"├── Trainable: {stats['trainable']:,} ({stats['trainable']/total_module_params*100:.2f}%)")
+            print(f"└── Frozen: {stats['frozen']:,} ({stats['frozen']/total_module_params*100:.2f}%)")
+            
+            if stats["params"]:
+                print("    Parameters:")
+                for param in stats["params"]:
+                    grad_status = "✓" if param["requires_grad"] else "✗"
+                    print(f"    ├── {param['name']}: {param['shape']}, "
+                          f"Requires Grad: {grad_status}, "
+                          f"Parameters: {param['num_params']:,}")
 
 def train(config):
     (
@@ -218,7 +285,13 @@ def train(config):
     )
 
     ################### Load model
-    if model_args.base_model:
+    if model_args.get("pretrained_model", None):
+        model = MSD.from_pretrained(
+            model_args.pop("pretrained_model", None),
+            torch_dtype=compute_dtype,
+            attn_implementation=model_args.attn_implementation
+        )
+    elif model_args.base_model:
         labels_ratio = {}
         label_class_ratio = train_dataloader.calculate_class_ratio(inver_labels_map)
         print("************************************")
@@ -248,33 +321,38 @@ def train(config):
                 quantization_config = quantization_config,
                 torch_dtype=compute_dtype,
                 id2label=inver_labels_map,
+                label2id=data_args.get("labels_map", None),
                 class_ratio=labels_ratio,
                 min_pixels=min_pixels,
                 max_pixels=max_pixels,
+                smoothing=training_args.pop("label_smoothing_factor", None),
                 **model_args
             )
         else:
             config = MSDConfig(
                 torch_dtype=compute_dtype,
                 id2label=inver_labels_map,
+                label2id=data_args.get("labels_map", None),
                 num_class=len(inver_labels_map),
                 class_ratio=labels_ratio,
+                smoothing=training_args.pop("label_smoothing_factor", None),
                 **model_args
             )
         model = MSD(config)
-        model.freeze_vision()
-        if training_args.pop("freeze_base", None):
-            model.freeze_base()
-        ################ *****************************************************
-        if training_args.pop("use_liger_kernel", None):
-            apply_liger_kernel_to_msd(fused_linear_cross_entropy=False, model=model)
-        if training_args.quantization:
-            model = prepare_model_for_kbit_training(model)
-        training_args.pop("quantization", None)
     else:
         raise ValueError("You must specify embedder_based and thinker_based")
     
-    print(model)
+    model.freeze_vision()
+    if training_args.pop("freeze_base", None):
+        model.freeze_base()
+    ################ *****************************************************
+    if training_args.pop("use_liger_kernel", None):
+        apply_liger_kernel_to_msd(fused_linear_cross_entropy=False, model=model)
+    if training_args.quantization:
+        model = prepare_model_for_kbit_training(model)
+    training_args.pop("quantization", None)
+    
+    # print(model)
     # if train gradient checkpoint must enable input require_grad
     if training_args.gradient_checkpointing:
         model.gradient_checkpointing_enable(training_args.gradient_checkpointing_kwargs)
@@ -326,23 +404,37 @@ def train(config):
     if training_args.do_eval and callback_args.get("patient", None):
         trainer.add_callback(EarlyStoppingCallback(early_stopping_patience=callback_args.patient))
 
+
     # Training
     checkpoint = False
     if training_args.resume_from_checkpoint is not None:
         checkpoint = training_args.resume_from_checkpoint
     trainer.train(resume_from_checkpoint=checkpoint)
 
-    if trainer.is_local_process_zero() and use_lora:
-        model = trainer.accelerator.unwrap_model(trainer.model).merge_and_unload()
-        model.save_pretrained(
-            f"{training_args.output_dir}/merged_model",
-            safe_serialization=True,
-            max_shard_size="4GB"  # Adjust this value based on your needs
-        )
-        processor.save_pretrained(f"{training_args.output_dir}/merged_model")
-        chat_template = processor.tokenizer.chat_template
-        with open(os.path.join(f"{training_args.output_dir}/merged_model", 'chat_template.json'), 'w') as f:
-            json.dump({'chat_template': chat_template}, f, indent=2)
+    if trainer.is_local_process_zero():
+        #analyze_gradients(trainer.accelerator.unwrap_model(trainer.model), detailed=True)
+        if use_lora:
+            model = trainer.accelerator.unwrap_model(trainer.model).merge_and_unload()
+            model.save_pretrained(
+                f"{training_args.output_dir}/merged_model",
+                safe_serialization=True,
+                max_shard_size="4GB"  # Adjust this value based on your needs
+            )
+            processor.save_pretrained(f"{training_args.output_dir}/merged_model")
+            chat_template = processor.tokenizer.chat_template
+            with open(os.path.join(f"{training_args.output_dir}/merged_model", 'chat_template.json'), 'w') as f:
+                json.dump({'chat_template': chat_template}, f, indent=2)
+        else:
+            model = trainer.accelerator.unwrap_model(trainer.model)
+            model.save_pretrained(
+                f"{training_args.output_dir}/merged_model",
+                safe_serialization=True,
+                max_shard_size="4GB"  # Adjust this value based on your needs
+            )
+            processor.save_pretrained(f"{training_args.output_dir}/merged_model")
+            chat_template = processor.tokenizer.chat_template
+            with open(os.path.join(f"{training_args.output_dir}/merged_model", 'chat_template.json'), 'w') as f:
+                json.dump({'chat_template': chat_template}, f, indent=2)
         
         
         

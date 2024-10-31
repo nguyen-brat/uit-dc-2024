@@ -1,35 +1,40 @@
 data_args:
   train_data:
-    # annotate_paths: [
-    #   "data/public_train/ocr_llm_fix_train.json",
-    #   "data/public_train/ocr_llm_fix_train_image_upsample.json",
-    #   "data/public_train/ocr_llm_fix_train_text_upsample.json"
-    # ]
-    # image_path: "data/public_train/train-images"
-    annotate_paths: ["data/warn_up/ocr_llm.json"]
-    image_path: "data/warn_up/warmup-images"
+    annotate_paths: [
+      "data/public_train/ocr_llm_fix_train.json",
+      "data/public_train/ocr_llm_fix_train_image_upsample.json",
+      "data/public_train/ocr_llm_fix_train_text_upsample_x10.json",
+      "data/public_train/ocr_llm_fix_train_text_upsample_x10.json",
+      "data/public_train/ocr_llm_fix_train_text_upsample_x10.json",
+      "data/public_train/ocr_llm_fix_train_text_upsample_x10.json"
+    ]
+    image_path: "data/public_train/train-images"
+    # annotate_paths: ["data/warn_up/ocr_llm.json"]
+    # image_path: "data/warn_up/warmup-images"
   val_data:
-    # annotate_paths: ["data/public_train/ocr_llm_fix_test.json"]
-    # image_path: "data/public_train/train-images"
-    annotate_paths: ["data/warn_up/ocr_llm.json"]
-    image_path: "data/warn_up/warmup-images"
+    annotate_paths: ["data/public_train/ocr_llm_fix_test.json"]
+    image_path: "data/public_train/train-images"
+    # annotate_paths: ["data/warn_up/ocr_llm.json"]
+    # image_path: "data/warn_up/warmup-images"
   max_length: 2500
   labels_map:
     multi-sarcasm: 0
     not-sarcasm: 1
-    image-sarcasm: 0
-    text-sarcasm: 0
+    image-sarcasm: 2
+    text-sarcasm: 3
   inver_labels_map:
     "0": "multi-sarcasm"
     "1": "not-sarcasm"
+    "2": "image-sarcasm"
+    "3": "text-sarcasm"
   # min_pixels: 200704
   # max_pixels: 1003520
   # cache_dir: "./data_cache"
 
 training_args:
-  freeze_base: False
+  freeze_base: True
   bf16: True
-  use_lora: True
+  use_lora: False
   learning_rate: 5e-5
   lr_scheduler_type: "cosine"
   warmup_ratio: 0.1
@@ -40,21 +45,21 @@ training_args:
   torch_compile_backend: "cudagraphs"
   use_liger_kernel: False # BUG if True
   quantization: 0 # 0 mean not use quantization 4 mean 4 bit 8 mean 8 bit
-  output_dir: "model/dump/dump1"
+  output_dir: "model/hf/6_extrac_layer_smoother_loss_upsampling_batch_1"
   overwrite_output_dir: true
-  num_train_epochs: 1
-  per_device_train_batch_size: 2
-  per_device_eval_batch_size: 2
-  gradient_accumulation_steps: 8
+  num_train_epochs: 5
+  per_device_train_batch_size: 1
+  per_device_eval_batch_size: 1
+  gradient_accumulation_steps: 36
   dataloader_num_workers: 36
   do_train: true
   do_eval: true
   eval_strategy: "steps" # Evaluation is done (and logged) every eval_steps
   logging_strategy: "steps"
   save_strategy: "steps"
-  eval_steps: 1
-  save_steps: 2
-  save_total_limit: 5
+  eval_steps: 20
+  save_steps: 20
+  save_total_limit: 1
   # seed: null
   label_names: ["labels"]
   resume_from_checkpoint: False
@@ -62,12 +67,13 @@ training_args:
   prediction_loss_only: False
   metric_for_best_model: "f1"
   neftune_noise_alpha: 5
-  # label_smoothing_factor: 0.1
-  # optim: "paged_lion_8bit"
+  label_smoothing_factor: 0.1
+  # optim: "paged_lion_8bit" # bug when use with ds zero2
 
 model_args:
+  # pretrained_model: "model/hf/freeze_base_upsample_training_weight_ce_loss/merged_model"
   base_model: "LLaMA-Factory/models/qwen2_vl_lora_sft_v2"
-  extra_layers: 4
+  extra_layers: 6
   # num_class: 4
   model_kwargs:
       token: "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"
@@ -88,19 +94,19 @@ lora_args:
   target_modules: [
     .*\.down_proj,  # Add $ to match end of string
     .*\.gate_proj,
-    # .*\.v_proj,
+    .*\.v_proj,
     .*\.up_proj,
     .*\.k_proj,
-    # .*\.o_proj,
+    .*\.o_proj,
     .*\.q_proj
   ] # "all-linear"
-  modules_to_save: [
-    ^encoder_layers.*,  # Add ^ to match start of string
-    ^classification_layer
-  ]
+  # modules_to_save: [
+  #   ^encoder_layers.*,  # Add ^ to match start of string
+  #   ^classification_layer
+  # ]
 
 wandb_args:
-  run_name: "qwen2-vl-reasoning-tuned-based_dump" # "My goodfellas"
+  run_name: "6_extrac_layer_smoother_loss_upsampling_batch_1" # "My goodfellas"
   logging_steps: 1
   report_to: "wandb"
 

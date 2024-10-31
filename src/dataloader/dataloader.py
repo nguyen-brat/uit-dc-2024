@@ -16,7 +16,7 @@ LABELS_MAP = {
 
 
 class MSDDataloader(Dataset):
-    def __init__(self, annotate_paths, image_path, labels_map = None, ignore_labels = None):
+    def __init__(self, annotate_paths, image_path, labels_map = None, ignore_labels = []):
         self._annotate = []
         for annotate_path in annotate_paths:
             with open(annotate_path, "r") as f:
