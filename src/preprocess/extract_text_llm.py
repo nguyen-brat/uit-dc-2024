@@ -6,17 +6,20 @@ from PIL import Image
 from torchvision.transforms.functional import InterpolationMode
 from transformers import AutoModel, AutoTokenizer
 
-from .utils import load_image
+from utils import load_image
 
+model_name = "5CD-AI/Vintern-3B-beta" # "5CD-AI/Vintern-4B-v1"
 model = AutoModel.from_pretrained(
-    "5CD-AI/Vintern-4B-v1",
+    model_name,
+    attn_implementation="flash_attention_2",
     torch_dtype=torch.bfloat16,
     low_cpu_mem_usage=True,
     trust_remote_code=True,
 ).eval().cuda()
-tokenizer = AutoTokenizer.from_pretrained("5CD-AI/Vintern-4B-v1", trust_remote_code=True, use_fast=False)
-generation_config = dict(max_new_tokens= 512, do_sample=False, num_beams = 4, repetition_penalty=3.0)
-question = "<image>\nTrích xuất văn bản có trong ảnh."
+tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True, use_fast=False)
+generation_config = dict(max_new_tokens= 512, do_sample=False, num_beams = 3, repetition_penalty=3.5)
+# question = "<image>\nTrích xuất văn bản có trong ảnh."
+question = '<image>\nMô tả hình ảnh một cách chi tiết.'
 
 ################################
 
@@ -49,7 +52,7 @@ if __name__ == "__main__":
     for key, value in tqdm(data.items()):
         image_path = osp(image_folder_path, value["image"])
         pixel_values = load_image(image_path, max_num=6).to(torch.bfloat16).to(model.device)
-        response, history = model.chat(tokenizer, pixel_values, question, repetition_penalty=1.5, history=None, return_history=True)
+        response, history = model.chat(tokenizer, pixel_values, question, generation_config, history=None, return_history=True)
         data[key]["ocr"] = response
         with open(output_path, "w", encoding='utf-8') as f:
             json.dump(data, f, indent=4, ensure_ascii=False)

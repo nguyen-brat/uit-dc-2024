@@ -3,7 +3,13 @@ from torch.utils.data import Dataset
 import json
 from os.path import join as osp
 from .collator import MSDDataCollator
-from .prompt import SYSTEM_PROMPT, USER_PROMPT
+from .prompt import (
+    SYSTEM_PROMPT,
+    USER_PROMPT,
+    USER_PROMPT_V2,
+    USER_PROMPT_V3,
+    ASSISTANT_ANSWER,
+)
 from transformers import Qwen2VLProcessor
 import random
 
@@ -52,14 +58,19 @@ class MSDDataloader(Dataset):
         if idx in self.cached_data_dict:
             return self.cached_data_dict[idx]
 
+        user_instruct = USER_PROMPT_V2.format(caption=self.annotate[idx]["caption"], ocr=self.annotate[idx]["ocr"])
         message = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {
                 "role": "user",
                 "content": [
+                    {"type": "text", "text": user_instruct.split("<image>")[0]},
                     {"type": "image", "image": osp(self.image_path, self.annotate[idx]["image"])},
-                    {"type": "text", "text": USER_PROMPT.format(caption=self.annotate[idx]["caption"], ocr=self.annotate[idx]["ocr"])}
+                    {"type": "text", "text": "<image>".join(user_instruct.split("<image>")[1:])}
                 ]
+            },
+            {
+                "role": "assistant", "content": self.annotate[idx]["reasoning"]
             }
         ]
 

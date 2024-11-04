@@ -45,7 +45,6 @@ class SmoothedCrossEntropyLoss:
 
         # Compute negative log likelihood loss
         nll_loss = log_probs.gather(dim=-1, index=labels)
-
         # Apply class weights if provided
         if self.class_weights is not None:
             weight_tensor = self.class_weights.gather(dim=-1, index=labels)
@@ -53,11 +52,9 @@ class SmoothedCrossEntropyLoss:
 
         # Smoothing loss (total log probabilities for all classes)
         smoothed_loss = log_probs.sum(dim=-1, keepdim=True, dtype=torch.float32)
-
         # Take the mean over the label dimensions, then divide by the number of active elements (i.e. not-padded):
         nll_loss = nll_loss.mean()
         smoothed_loss = smoothed_loss.mean()
-
         return (1 - self.epsilon) * nll_loss + self.epsilon * smoothed_loss
 
 
@@ -71,12 +68,7 @@ class FocalLoss(nn.Module):
         # Based on your class distribution analysis
         if alpha is None:
             # Calculate alpha based on inverse square root of class frequencies
-            frequencies = torch.tensor([
-                0.167,  # multi-sarcasm
-                0.078,  # not-sarcasm
-                0.0005, # image-sarcasm
-                0.00018 # text-sarcasm
-            ])
+            frequencies = torch.tensor([1, 1, 1, 1])
             
             # Inverse square root weighting
             alpha = 1.0 / torch.sqrt(frequencies)
@@ -92,7 +84,7 @@ class FocalLoss(nn.Module):
         targets = targets.view(-1, 1)
         p_t = p.gather(1, targets).view(-1)
         # Calculate weights for each sample
-        alpha_t = self.alpha.gather(0, targets.view(-1)).to(inputs.device)
+        alpha_t = self.alpha.gather(0, targets.view(-1)).to(inputs.dtype).to(inputs.device)
         # Calculate focal loss
         focal_weight = (1 - p_t) ** self.gamma
         # Combine focal weight with class weight (alpha)
@@ -201,9 +193,9 @@ class MSD(Qwen2VLPreTrainedModel):
         #         sequence_lengths = sequence_lengths.to(logits.device)
         #     else:
         #         sequence_lengths = -1
-        pooled_logits = logits[torch.arange(batch_size, device=logits.device), -1]
+        # pooled_logits = logits[torch.arange(batch_size, device=logits.device), -1]
 
-        # mean_logits = self.masked_mean(logits, attention_mask, 1)
+        pooled_logits = self.masked_mean(logits, attention_mask, 1)
         if self.gradient_checkpointing and self.training:
             logits = self._gradient_checkpointing_func(
                 self.classification_layer.__call__,
@@ -234,12 +226,13 @@ class MSD(Qwen2VLPreTrainedModel):
         mask_expanded = mask.unsqueeze(-1).expand_as(tensor).to(tensor.dtype).to(tensor.device)
         masked_tensor = tensor * mask_expanded
         sum_tensor = torch.sum(masked_tensor, dim=dim)
-        count = torch.sum(mask, dim=dim).unsqueeze(-1).expand_as(sum_tensor).to(tensor.dtype).to(tensor.device)
+        # count = torch.sum(mask, dim=dim).unsqueeze(-1).expand_as(sum_tensor).to(tensor.dtype).to(tensor.device)
         
         # Compute mean (avoiding division by zero)
-        mean = torch.div(sum_tensor, (count + torch.finfo(tensor.dtype).min))
+        # mean = torch.div(sum_tensor, (count + torch.finfo(tensor.dtype).min))
         
-        return mean
+        # return mean
+        return sum_tensor
     
 
     def compute_loss(self, logits, labels):
@@ -253,9 +246,11 @@ class MSD(Qwen2VLPreTrainedModel):
             weights = weights/weights.sum()
 
         # Use custom loss with label smoothing and weights
-        criterion = SmoothedCrossEntropyLoss(epsilon=self.config.smoothing, class_weights=weights)
-        # criterion = CrossEntropyLoss(weight=weights)
-        
+        # criterion = SmoothedCrossEntropyLoss(epsilon=self.config.smoothing, class_weights=weights)
+        criterion = CrossEntropyLoss(
+            weight=weights
+        )
+        # criterion = FocalLoss(alpha = 1/torch.tensor([1, 1, 1], device=logits.device, dtype=logits.dtype))
         loss = criterion(logits, labels)
         return loss
 

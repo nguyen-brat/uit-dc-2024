@@ -1,7 +1,9 @@
-from transformers import Qwen2VLProcessor, AutoProcessor
+from transformers import Qwen2VLProcessor, AutoProcessor, PreTrainedTokenizer
 from qwen_vl_utils import process_vision_info
 import json
 from PIL import Image
+from typing import List
+from utils import *
 
 
 SYSTEM_PROMPT_EN = '''You are a helpful assistant. Answer in English proper. Imagine you are a Vietnamese content moderator on Vietnam facebook post you need to reasoning \
@@ -148,9 +150,10 @@ TRAIN_SYS_RESPONSE = '''{reason}
 **Final-result**
 The post is -> {label}'''
 
+VI_REASONING_INSTRUCTION = '<image>\nCho bài đăng trên facebook gồm bức ảnh được cung cấp với dòng caption: {caption}. Bài đăng trên có mang tính châm biếm không và giải thích lí do?'
+VI_REASONING_INSTRUCTION_IMAGE = '<image>\nCho bài đăng trên facebook. Nội dung bức ảnh bao gồm chữ trong ảnh có mang tính châm biếm không và vì sao?'
+
 from PIL import Image
-
-
 
 def create_reas_prompt_qwen2_vl(
         processor:Qwen2VLProcessor,
@@ -238,7 +241,7 @@ def create_reas_prompt_qwen2_vl(
 
 def create_reas_prompt_pixtral(
         processor,
-        image_paths,
+        image_paths:List[str],
         captions,
         labels,
         ocrs,
@@ -303,6 +306,38 @@ def create_reas_prompt_pixtral(
         padding_side="left",
     )
     return inputs
+
+
+def create_vi_intern_prompt(
+        tokenizer:PreTrainedTokenizer,
+        image_paths:List[str],
+        captions:List[str],
+        labels:List[str],
+        ocrs:List[str],
+):
+    pixel_values = load_image(image_paths[0], max_num=6).to(torch.bfloat16).cuda()
+    question = VI_REASONING_INSTRUCTION.format(caption=captions[0])
+    return dict(
+        tokenizer=tokenizer,
+        pixel_values=pixel_values,
+        question=question
+    )
+
+
+def create_vi_intern_prompt_image(
+        tokenizer:PreTrainedTokenizer,
+        image_paths:List[str],
+        captions:List[str],
+        labels:List[str],
+        ocrs:List[str],
+):
+    pixel_values = load_image(image_paths[0], max_num=6).to(torch.bfloat16).cuda()
+    question = VI_REASONING_INSTRUCTION_IMAGE
+    return dict(
+        tokenizer=tokenizer,
+        pixel_values=pixel_values,
+        question=question
+    )
 
 
 if __name__ == "__main__":

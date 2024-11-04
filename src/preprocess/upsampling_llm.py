@@ -100,11 +100,11 @@ def up_sampling(input_path, output_path, model, tokenizer, num_sample_used, labe
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--label_type", type=str, default="text-sarcasm")
-    parser.add_argument("--num_sample_used", type=int, default="60")
-    parser.add_argument("--num_upsample", type=int, default="10")
-    parser.add_argument("--input_path", type=str, default="data/public_train/ocr_llm_fix_train.json")
-    parser.add_argument("--output_path", type=str, default="data/public_train/ocr_llm_fix_train_text_upsample_x10.json")
+    parser.add_argument("--label_type", type=str, default="image-sarcasm")
+    parser.add_argument("--num_sample_used", type=int, default="404")
+    parser.add_argument("--num_upsample", type=int, default="6")
+    parser.add_argument("--input_path", type=str, default="data/public_train/ocr_llm_reasoning_v2_train.json")
+    parser.add_argument("--output_path", type=str, default="data/public_train/ocr_llm_reasoning_v2_train_image_upsample_x6.json")
     args = parser.parse_args()
 
 

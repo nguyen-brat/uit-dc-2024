@@ -325,7 +325,7 @@ def train(config):
                 class_ratio=labels_ratio,
                 min_pixels=min_pixels,
                 max_pixels=max_pixels,
-                smoothing=training_args.pop("label_smoothing_factor", None),
+                # smoothing=training_args.pop("label_smoothing_factor", None),
                 **model_args
             )
         else:
@@ -335,9 +335,10 @@ def train(config):
                 label2id=data_args.get("labels_map", None),
                 num_class=len(inver_labels_map),
                 class_ratio=labels_ratio,
-                smoothing=training_args.pop("label_smoothing_factor", None),
+                # smoothing=training_args.pop("label_smoothing_factor", None),
                 **model_args
             )
+        print(config)
         model = MSD(config)
     else:
         raise ValueError("You must specify embedder_based and thinker_based")

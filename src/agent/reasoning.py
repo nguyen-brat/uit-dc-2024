@@ -2,7 +2,9 @@ from transformers import (
     Qwen2VLProcessor,
     Qwen2VLForConditionalGeneration,
     LlavaForConditionalGeneration,
-    AutoProcessor
+    AutoProcessor,
+    AutoModel,
+    AutoTokenizer,
 )
 import json
 import re
@@ -13,7 +15,12 @@ import itertools
 from functools import partial
 from os.path import join as osp
 from tqdm import tqdm
-from prompt import create_reas_prompt_pixtral, create_reas_prompt_qwen2_vl
+from prompt import (
+    create_reas_prompt_pixtral,
+    create_reas_prompt_qwen2_vl,
+    create_vi_intern_prompt,
+    create_vi_intern_prompt_image
+)
 import traceback
 from datetime import datetime
 import gc
@@ -48,7 +55,7 @@ def group_subitems_by_key(batch):
         images.append(value['image'])
         captions.append(value['caption'])
         labels.append(value['label'])
-        ocrs.append(value['ocr'])
+        ocrs.append(value.get('ocr', None))
         keys.append(key)
 
     # Return the grouped sub-items as a dictionary of lists
@@ -70,19 +77,18 @@ class ReasoningPrompt:
             self, model="pixtral",
             generation_config = None,
     ):
+        self.loaded_model = model
         if model == "pixtral":
             self.load_pixtral()
         elif model == "qwen2":
             self.load_qwen2()
+        elif model == "vi_intern":
+            self.load_vi_intern()
         else:
             raise KeyError(f"There currently not support {model} only support qwen2 and pixtral")
-        self.generation_config = {
-            "max_new_tokens": 1024,
-            # "repetition_penalty": 1.0,
-            # "temperature": 0.001,
-            # "top_p" : 0.005,
-            # "top_k" : 1
-        } if generation_config == None else generation_config
+        self.generation_config = dict(
+            max_new_tokens= 512, do_sample=False, num_beams = 3, repetition_penalty=2.0
+        ) if generation_config == None else generation_config
 
     @torch.no_grad()
     def generation(
@@ -92,21 +98,26 @@ class ReasoningPrompt:
             label,
             ocr,
     )->str:
-        inputs = self.prompt_creator(image_path, caption, label, ocr).to(self.model.device)
-        generated_ids = self.model.generate(**inputs, **self.generation_config)
-        generated_ids_trimmed = [
-            out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
-        ]
-        output_text = self.processor.batch_decode(
-            generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
-        )
+        inputs = self.prompt_creator(image_paths=image_path, captions=caption, labels=label, ocrs=ocr)
+        if self.loaded_model != "vi_intern":
+            inputs = inputs.to(self.model.device)
+            generated_ids = self.model.generate(**inputs, **self.generation_config)
+            generated_ids_trimmed = [
+                out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
+            ]
+            output_text = self.processor.batch_decode(
+                generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
+            )
 
-        del inputs
-        del generated_ids
-        torch.cuda.empty_cache()
-        gc.collect()
-        
-        return output_text
+            del inputs
+            del generated_ids
+            torch.cuda.empty_cache()
+            gc.collect()
+            
+            return output_text
+        else:
+            response, _ = self.model.chat(**inputs, generation_config=self.generation_config, history=None, return_history=True)
+            return [response]
 
     def load_pixtral(self):
         self.model = LlavaForConditionalGeneration.from_pretrained(
@@ -129,6 +140,17 @@ class ReasoningPrompt:
         self.processor = Qwen2VLProcessor.from_pretrained("Qwen/Qwen2-VL-7B-Instruct")
         self.prompt_creator = partial(create_reas_prompt_qwen2_vl, self.processor)
         print("loading qwen2-vl model sccessfully")
+    
+    def load_vi_intern(self):
+        self.model = AutoModel.from_pretrained(
+            "5CD-AI/Vintern-3B-beta",
+            torch_dtype=torch.bfloat16,
+            low_cpu_mem_usage=True,
+            trust_remote_code=True,
+        ).eval().cuda()
+        tokenizer = AutoTokenizer.from_pretrained("5CD-AI/Vintern-3B-beta", trust_remote_code=True, use_fast=False)
+        self.prompt_creator = partial(create_vi_intern_prompt_image, tokenizer)
+        print("loading Vintern-3B-beta")
 
 
 
@@ -166,7 +188,7 @@ def Reasoning(prompt_creator:ReasoningPrompt, input_path, output_path, image_pat
             )
 
             for key, reasoning in zip(group_item["keys"], reasonings):
-                result[key]["reasoning"] = reasoning
+                result[key]["image_reasoning"] = reasoning
                 result[key].update(batch[key])
             with open(output_path, "w", encoding="utf-8") as f:
                 json.dump(result, f, ensure_ascii=False, indent=4)
@@ -189,17 +211,16 @@ def Reasoning(prompt_creator:ReasoningPrompt, input_path, output_path, image_pat
             with open(f"log/key_error_{output_file_name}.txt", "a") as key_error_file:
                 for key in error_keys:
                     key_error_file.write(f"{key}\n")
-
     return result
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", type=str, default="pixtral")
+    parser.add_argument("--model", type=str, default="vi_intern")
     parser.add_argument("--image_path", type=str, default="data/public_train/train-images")
-    parser.add_argument("--input_path", type=str, default="data/public_train/ocr_llm.json")
-    parser.add_argument("--output_path", type=str, default="data/public_train/reasoning_vlm_pixtral.json")
-    parser.add_argument("--batch_size", type=int, default=6)
+    parser.add_argument("--input_path", type=str, default="data/public_train/vimmsd-train_01.json")
+    parser.add_argument("--output_path", type=str, default="data/public_train/reasoning_vi_intern_image_reasoning_01.json")
+    parser.add_argument("--batch_size", type=int, default=1)
     args = parser.parse_args()
 
     prompt_creator = ReasoningPrompt(args.model)
