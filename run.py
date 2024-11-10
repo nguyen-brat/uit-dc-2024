@@ -63,12 +63,12 @@ def inference(args, model):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model_path", type=str, default="model/trained/qwen2_vl_cls_qwen2_reason_base")
-    parser.add_argument("--batch_size", type=int, default=2)
-    parser.add_argument("--annotation_path", type=str, default="data/public_test/ocr_llm_fix.json")
-    parser.add_argument("--image_path", type=str, default="data/public_test/dev-images")
-    parser.add_argument("--output_dir", type=str, default="submit/results_dump.json")
-    parser.add_argument("--phase", type=str, default="dev")
+    parser.add_argument("--model_path", type=str, default="model/hf/2_extra_layer_7b_smoothe_loss_draft_text_image_reasoning_batch_1/merged_model")
+    parser.add_argument("--batch_size", type=int, default=1)
+    parser.add_argument("--annotation_path", type=str, default="data/private_test/processed_data.json")
+    parser.add_argument("--image_path", type=str, default="data/private_test/test-images")
+    parser.add_argument("--output_dir", type=str, default="submit/results.json")
+    parser.add_argument("--phase", type=str, default="test")
     args = parser.parse_args()
 
     # model = MSD.from_pretrained(args.model_path, torch_dtype="auto", device_map="auto").eval()

@@ -193,9 +193,9 @@ class MSD(Qwen2VLPreTrainedModel):
         #         sequence_lengths = sequence_lengths.to(logits.device)
         #     else:
         #         sequence_lengths = -1
-        # pooled_logits = logits[torch.arange(batch_size, device=logits.device), -1]
+        pooled_logits = logits[torch.arange(batch_size, device=logits.device), -1]
 
-        pooled_logits = self.masked_mean(logits, attention_mask, 1)
+        # pooled_logits = self.masked_mean(logits, attention_mask, 1)
         if self.gradient_checkpointing and self.training:
             logits = self._gradient_checkpointing_func(
                 self.classification_layer.__call__,

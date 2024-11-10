@@ -1,29 +1,30 @@
 data_args:
   train_data:
     annotate_paths: [
-      "data/public_train/ocr_llm_reasoning_v2_train.json",
-      "data/public_train/ocr_llm_reasoning_v2_train_image_upsample_x6.json",
+      "data/public_train/image_text_reasoning/train_image_text_ocr_llm_reasoning_v2.json",
+      # "data/public_train/image_text_reasoning/train_image_umsaple_x6_image_text_ocr_llm_reasoning_v2.json",
+      "data/public_train/image_text_reasoning/train_text_umsaple_x10_image_text_ocr_llm_reasoning_v2.json",
     ]
     image_path: "data/public_train/train-images"
     # annotate_paths: ["data/warn_up/ocr_llm.json"]
     # image_path: "data/warn_up/warmup-images"
   val_data:
-    annotate_paths: ["data/public_train/ocr_llm_reasoning_v2_test.json"]
+    annotate_paths: ["data/public_train/image_text_reasoning/test_image_text_ocr_llm_reasoning_v2.json"]
     image_path: "data/public_train/train-images"
     # annotate_paths: ["data/warn_up/ocr_llm.json"]
     # image_path: "data/warn_up/warmup-images"
-  max_length: 5000
+  max_length: 2500
   labels_map:
     multi-sarcasm: 0
     not-sarcasm: 1
     image-sarcasm: 2
-    # text-sarcasm: 3
+    text-sarcasm: 3
   inver_labels_map:
     "0": "multi-sarcasm"
     "1": "not-sarcasm"
     "2": "image-sarcasm"
-    # "3": "text-sarcasm"
-  ignore_labels: ["text-sarcasm"]
+    "3": "text-sarcasm"
+  # ignore_labels: ["text-sarcasm"]
   # min_pixels: 200704
   # max_pixels: 1003520
   # cache_dir: "./data_cache"
@@ -42,41 +43,41 @@ training_args:
   torch_compile_backend: "cudagraphs"
   use_liger_kernel: False # BUG if True
   quantization: 0 # 0 mean not use quantization 4 mean 4 bit 8 mean 8 bit
-  output_dir: "model/hf/4_extrac_layer_freeze_base_2b_ce_weight_loss_draft_reasoning_sum_mask_remove_text_labels_upsampling_image_batch_1"
+  output_dir: "model/hf/2_extra_layer_7b_smoothe_loss_draft_text_image_reasoning_batch_1"
   overwrite_output_dir: true
   num_train_epochs: 5
   per_device_train_batch_size: 1
   per_device_eval_batch_size: 1
-  gradient_accumulation_steps: 64
+  gradient_accumulation_steps: 32
   dataloader_num_workers: 36
   do_train: true
   do_eval: true
   eval_strategy: "steps" # Evaluation is done (and logged) every eval_steps
   logging_strategy: "steps"
   save_strategy: "steps"
-  eval_steps: 10
-  save_steps: 10
-  save_total_limit: 1
+  eval_steps: 20
+  save_steps: 20
+  save_total_limit: 2
   # seed: null
   label_names: ["labels"]
   resume_from_checkpoint: False
   load_best_model_at_end: True
   prediction_loss_only: False
   metric_for_best_model: "f1"
-  # neftune_noise_alpha: 5
-  # label_smoothing_factor: 0.1
+  neftune_noise_alpha: 5
+  label_smoothing_factor: 0.1
+  # resume_from_checkpoint: True
   # optim: "paged_lion_8bit" # bug when use with ds zero2
 
 model_args:
   # pretrained_model: "model/hf/freeze_base_upsample_training_weight_ce_loss/merged_model"
-  base_model: "Qwen/Qwen2-VL-2B-Instruct" # "LLaMA-Factory/models/qwen2_vl_lora_sft_v2"
-  extra_layers: 4
-  # num_class: 4
+  base_model: "LLaMA-Factory/models/sarcasm_detection_draft_reasoning_v2" # "LLaMA-Factory/models/qwen2_vl_lora_sft_v2"
+  extra_layers: 1
   model_kwargs:
       token: "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"
       use_cache: False
-      attn_implementation: "sdpa" # flash_attention_2, sdpa, eager
-  # attn_implementation: "flash_attention_2"
+      attn_implementation: "flash_attention_2" # flash_attention_2, sdpa, eager
+  attn_implementation: "flash_attention_2"
 
 tokenizer_args:
   cache_dir: "./tokenizer_data"
@@ -91,10 +92,10 @@ lora_args:
   target_modules: [
     .*\.down_proj,  # Add $ to match end of string
     .*\.gate_proj,
-    .*\.v_proj,
+    #.*\.v_proj,
     .*\.up_proj,
     .*\.k_proj,
-    .*\.o_proj,
+    #.*\.o_proj,
     .*\.q_proj
   ] # "all-linear"
   modules_to_save: [
@@ -103,7 +104,7 @@ lora_args:
   ]
 
 wandb_args:
-  run_name: "4_extrac_layer_freeze_base_2b_ce_weight_loss_draft_reasoning_sum_mask_remove_text_labels_upsampling_image_batch_1" # "My goodfellas"
+  run_name: "2_extra_layer_7b_smoothe_loss_draft_text_image_reasoning_batch_1" # "My goodfellas"
   logging_steps: 1
   report_to: "wandb"
 

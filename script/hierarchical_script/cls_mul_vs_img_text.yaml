@@ -1,15 +1,15 @@
 data_args:
   train_data:
     annotate_paths: [
-      "data/public_train/ocr_llm_fix_train.json",
-      "data/public_train/ocr_llm_fix_train_image_upsample.json",
-      "data/public_train/ocr_llm_fix_train_text_upsample.json"
+      "data/public_train/image_text_reasoning/train_image_text_ocr_llm_reasoning_v2.json",
+      "data/public_train/image_text_reasoning/train_image_umsaple_x6_image_text_ocr_llm_reasoning_v2.json",
+      "data/public_train/image_text_reasoning/train_text_umsaple_x10_image_text_ocr_llm_reasoning_v2.json",
     ]
     image_path: "data/public_train/train-images"
     # annotate_paths: ["data/warn_up/ocr_llm.json"]
     # image_path: "data/warn_up/warmup-images"
   val_data:
-    annotate_paths: ["data/public_train/ocr_llm_fix_test.json"]
+    annotate_paths: ["data/public_train/image_text_reasoning/test_image_text_ocr_llm_reasoning_v2.json"]
     image_path: "data/public_train/train-images"
     # annotate_paths: ["data/warn_up/ocr_llm.json"]
     # image_path: "data/warn_up/warmup-images"
@@ -21,15 +21,15 @@ data_args:
   inver_labels_map:
     "0": "multi-sarcasm"
     "1": "image-sarcasm"
-  ignore_labels: not-sarcasm
+  ignore_labels: ["not-sarcasm"]
   # min_pixels: 200704
   # max_pixels: 1003520
   # cache_dir: "./data_cache"
 
 training_args:
-  freeze_base: False
+  freeze_base: True
   bf16: True
-  use_lora: True
+  use_lora: False
   learning_rate: 5e-5
   lr_scheduler_type: "cosine"
   warmup_ratio: 0.1
@@ -40,11 +40,11 @@ training_args:
   torch_compile_backend: "cudagraphs"
   use_liger_kernel: False # BUG if True
   quantization: 0 # 0 mean not use quantization 4 mean 4 bit 8 mean 8 bit
-  output_dir: "model/hierarchical/cls_multi_sarcasm_vs_image_text_sarcasm"
+  output_dir: "model/hierarchical/cls_multi_sarcasm_vs_image_text_sarcasm_draft_image_text_reasoning_v2"
   overwrite_output_dir: true
   num_train_epochs: 5
-  per_device_train_batch_size: 2
-  per_device_eval_batch_size: 2
+  per_device_train_batch_size: 1
+  per_device_eval_batch_size: 1
   gradient_accumulation_steps: 32
   dataloader_num_workers: 36
   do_train: true
@@ -52,9 +52,9 @@ training_args:
   eval_strategy: "steps" # Evaluation is done (and logged) every eval_steps
   logging_strategy: "steps"
   save_strategy: "steps"
-  eval_steps: 10
-  save_steps: 10
-  save_total_limit: 5
+  eval_steps: 20
+  save_steps: 20
+  save_total_limit: 1
   # seed: null
   label_names: ["labels"]
   resume_from_checkpoint: False
@@ -66,13 +66,13 @@ training_args:
   # optim: "paged_lion_8bit"
 
 model_args:
-  base_model: "LLaMA-Factory/models/qwen2_vl_lora_sft_v2"
+  base_model: "LLaMA-Factory/models/sarcasm_detection_draft_reasoning_v2"
   extra_layers: 4
   model_kwargs:
       token: "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"
       use_cache: False
-      attn_implementation: "flash_attention_2" # flash_attention_2, sdpa, eager
-  attn_implementation: "flash_attention_2"
+      attn_implementation: "sdpa" # flash_attention_2, sdpa, eager
+  attn_implementation: "sdpa"
 
 tokenizer_args:
   cache_dir: "./tokenizer_data"
@@ -99,7 +99,7 @@ lora_args:
   ]
 
 wandb_args:
-  run_name: "qwen2-vl-reasoning-tuned-based_cls_multi_vs_img_and_text" # "My goodfellas"
+  run_name: "cls_multi_sarcasm_vs_image_text_sarcasm_draft_image_text_reasoning_v2" # "My goodfellas"
   logging_steps: 1
   report_to: "wandb"
 

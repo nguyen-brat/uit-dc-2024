@@ -1,5 +1,7 @@
 SYSTEM_PROMPT = "You are a helpful assistant. Imagine you are a content moderator on facebook you need to reasoning\
-to category the content of the post (contain an image and a caption) is multi-sarcasm, non-sarcasm, image-sarcasm or text-sarcasm"
+to category the content of the post (contain an image and a caption) is multi-sarcasm, non-sarcasm, image-sarcasm or text-sarcasm."
+
+SYSTEM_PROMPT_V2 = "You are a helpful assistant."
 
 USER_PROMPT = """Imagine you are a content moderator on facebook you need to reasoning \
 to category the content of the post (contain an image and a caption) is multi-sarcasm, not-sarcasm, image-sarcasm or text-sarcasm. \
@@ -63,14 +65,15 @@ Mỉa mai được đưa ra là bất kỳ mẫu nào có chứa một hoặc nh
 Văn bản trong chú thích hoặc hình ảnh không phải là cuộc trò chuyện nhưng được đặt bên trong \"\" thường để mỉa mai hoặc nói điều đối lập.
 5. Các nhân vật có hành động vô lý và khác với những gì thường được mong đợi.
 
-### not-sarcasm-signal
+### tín hiệu không châm biếm
 Không-sarcasm được đưa ra là bất kỳ mẫu nào chứa một hoặc nhiều dấu hiệu trong câu chuyện (chứa văn bản và hình ảnh) được đưa ra dưới đây:
 1. Truyền tải tình cảm hoặc tuyên bố thẳng thắn và có nghĩa đen.
 2. Phù hợp trực tiếp với hình ảnh, hỗ trợ cho cách diễn giải theo nghĩa đen của văn bản.
 3. KHÔNG chứa các tín hiệu ngôn ngữ hoặc hình ảnh thường liên quan đến sự mỉa mai.
 
 Cho một bài đăng trên Facebook có chứa hình ảnh <image>, mô tả về hình ảnh và văn bản tham khảo trong hình ảnh là: {ocr} và chú thích: {caption}. \
-Giải thích từng bước bằng cách phân tích hình ảnh và chú thích sau đó đưa ra kết luận rằng bài đăng có ý nghĩa đa châm biếm, không châm biếm, châm biếm hình ảnh hoặc châm biếm văn bản."""
+Giải thích từng bước bằng cách phân tích hình ảnh và chú thích sau đó đưa ra kết luận rằng bài đăng có ý nghĩa image-sarcasm nếu ảnh hoặc chữ trong ảnh mang ý nghĩa châm biếm \
+hoặc text-sarcasm nếu chỉ chú trong bài đăng mang tính châm biếm và multi-sarcasm nếu cả ảnh và chú thích đều mang tính châm biếm, not-sarcasm nếu cả chú thích và ảnh đều không mang tính châm biếm."""
 
 ASSISTANT_ANSWER = """Nhận định về tính châm biếm trong chú thích của bài đăng: {text_reasoning}
 Nhận định về tính châm biếm trong hình ảnh của bài đăng: {image_reasoning}

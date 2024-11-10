@@ -10,10 +10,10 @@ TRAIN_CONFIG_PATH_2=${DIR}/script/hierarchical_script/cls_mul_vs_img_text.yaml
 TRAIN_CONFIG_PATH_3=${DIR}/script/hierarchical_script/cls_image_text.yaml
 
 # train classify to detect sarcasm or not first
-# accelerate launch --config_file $DEEPSPEED2_PATH ${DIR}/train.py --config_path $TRAIN_CONFIG_PATH_1
+accelerate launch --config_file $DEEPSPEED2_PATH ${DIR}/train.py --config_path $TRAIN_CONFIG_PATH_1
 
 # train classify multi-sarcasm and text + image sarcasm
 # accelerate launch --config_file $DEEPSPEED2_PATH ${DIR}/train.py --config_path $TRAIN_CONFIG_PATH_2
 
 # train classify text and image sarcasm
-accelerate launch --config_file $DEEPSPEED2_PATH ${DIR}/train.py --config_path $TRAIN_CONFIG_PATH_3
+# accelerate launch --config_file $DEEPSPEED2_PATH ${DIR}/train.py --config_path $TRAIN_CONFIG_PATH_3
