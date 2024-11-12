@@ -84,12 +84,11 @@ def up_sampling(input_path, output_path, model, tokenizer, num_sample_used, labe
 
     for sample in tqdm(data):
         generated_captions = generate_sample(sample["caption"], model, tokenizer, num_upsample)
+        del sample["caption"]
         for caption in generated_captions:
             new_data.append({
-                "image": sample["image"],
                 "caption": caption,
-                "label": sample["label"],
-                "ocr": sample["ocr"]
+                **sample
             })
 
         with open(output_path, "w", encoding='utf-8') as f:
@@ -102,13 +101,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--label_type", type=str, default="image-sarcasm")
     parser.add_argument("--num_sample_used", type=int, default="404")
-    parser.add_argument("--num_upsample", type=int, default="6")
+    parser.add_argument("--num_upsample", type=int, default=6)
     parser.add_argument("--input_path", type=str, default="data/public_train/ocr_llm_reasoning_v2_train.json")
     parser.add_argument("--output_path", type=str, default="data/public_train/ocr_llm_reasoning_v2_train_image_upsample_x6.json")
     args = parser.parse_args()
 
 
-    model_name = "arcee-ai/Arcee-VyLinh"
+    model_name = "Qwen/Qwen2-7B-Instruct" # arcee-ai/Arcee-VyLinh
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
         torch_dtype=torch.bfloat16,

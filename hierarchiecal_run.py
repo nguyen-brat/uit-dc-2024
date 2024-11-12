@@ -73,7 +73,7 @@ def inference(args):
     model_multi_image_text = MSD.from_pretrained(args.model_path_multi_image_text, torch_dtype=torch.bfloat16, device_map = "auto")
     total_batches = (len(data_multi_image_text) + args.batch_size - 1) // args.batch_size
     for batch in tqdm(get_n_items_at_a_time(data_multi_image_text, args.batch_size), total=total_batches):
-        caterories = model_multi_image_text.predict_origin(batch, args.image_path)
+        caterories = model_multi_image_text.predict(batch, args.image_path)
         for key, caterory in caterories.items():
             result["results"][key] = caterory
             data[key]["label"] = caterory
@@ -111,7 +111,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_path_not_multi", type=str, default="model/hierarchical/cls_multi_not_sarcasm/merged_model")
-    parser.add_argument("--model_path_multi_image_text", type=str, default="model/hierarchical/cls_multi_sarcasm_vs_image_text_sarcasm/merged_model")
+    parser.add_argument("--model_path_multi_image_text", type=str, default="model/hierarchical/cls_multi_sarcasm_vs_image_text_sarcasm_draft_image_text_reasoning_v3_5/checkpoint-220")
     parser.add_argument("--model_path_image_text", type=str, default="model/hierarchical/cls_image_vs_text_sarcasm_draft_image_text_reasoning_v2/merged_model")
     parser.add_argument("--batch_size", type=int, default=1)
     parser.add_argument("--annotation_path", type=str, default="data/private_test/processed_data.json")

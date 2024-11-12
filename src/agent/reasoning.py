@@ -229,8 +229,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=str, default="vi_intern")
     parser.add_argument("--image_path", type=str, default="data/public_train/train-images")
-    parser.add_argument("--input_path", type=str, default="data/public_train/vimmsd-train_01.json")
-    parser.add_argument("--output_path", type=str, default="data/public_train/reasoning_vi_intern_image_reasoning_01.json")
+    parser.add_argument("--input_path", type=str, default="data/public_train/vimmsd-train.json")
+    parser.add_argument("--output_path", type=str, default="data/public_train/reasoning_vi_intern_image_reasoning.json")
     parser.add_argument("--batch_size", type=int, default=1)
     args = parser.parse_args()
 
