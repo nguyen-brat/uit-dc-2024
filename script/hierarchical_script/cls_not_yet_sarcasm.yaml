@@ -23,9 +23,9 @@ data_args:
   # cache_dir: "./data_cache"
 
 training_args:
-  freeze_base: False
+  freeze_base: True
   bf16: True
-  use_lora: True
+  use_lora: False
   learning_rate: 5e-5
   lr_scheduler_type: "cosine"
   warmup_ratio: 0.1
@@ -36,20 +36,20 @@ training_args:
   torch_compile_backend: "cudagraphs"
   use_liger_kernel: False # BUG if True
   quantization: 0 # 0 mean not use quantization 4 mean 4 bit 8 mean 8 bit
-  output_dir: "model/hierarchical/cls_multi_not_sarcasm_draft_image_text_reasoning_v2"
+  output_dir: "model/hierarchical/cls_multi_not_sarcasm_draft_image_text_reasoning_v3"
   overwrite_output_dir: true
   num_train_epochs: 4
   per_device_train_batch_size: 1
   per_device_eval_batch_size: 1
-  gradient_accumulation_steps: 32
+  gradient_accumulation_steps: 64
   dataloader_num_workers: 36
   do_train: true
   do_eval: true
   eval_strategy: "steps" # Evaluation is done (and logged) every eval_steps
   logging_strategy: "steps"
   save_strategy: "steps"
-  eval_steps: 20
-  save_steps: 20
+  eval_steps: 10
+  save_steps: 10
   save_total_limit: 2
   # seed: null
   label_names: ["labels"]
@@ -95,7 +95,7 @@ lora_args:
   ]
 
 wandb_args:
-  run_name: "cls_multi_not_sarcasm_draft_image_text_reasoning_v2" # "My goodfellas"
+  run_name: "cls_multi_not_sarcasm_draft_image_text_reasoning_v3" # "My goodfellas"
   logging_steps: 1
   report_to: "wandb"
 

@@ -13,7 +13,14 @@ from torch.utils.checkpoint import checkpoint
 
 from .config import MSDConfig, MSDOutput
 from .base import Qwen2VLHL, MSDCrossEncoderLayer
-from ..dataloader.prompt import SYSTEM_PROMPT, USER_PROMPT
+from ..dataloader.prompt import (
+    SYSTEM_PROMPT,
+    SYSTEM_PROMPT_V2,
+    USER_PROMPT,
+    USER_PROMPT_V2,
+    USER_PROMPT_V3,
+    ASSISTANT_ANSWER,
+)
 from qwen_vl_utils import process_vision_info
 
 @dataclass
@@ -290,6 +297,79 @@ class MSD(Qwen2VLPreTrainedModel):
 
     @torch.no_grad()
     def predict(self, samples, image_path):
+        '''
+        predict output for evaluation
+        '''
+        chat_template = "{% set image_count = namespace(value=0) %}{% set video_count = namespace(value=0) %}{% for message in messages %}{% if loop.first and message['role'] != 'system' %}<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n{% endif %}<|im_start|>{{ message['role'] }}\n{% if message['content'] is string %}{{ message['content'] }}<|im_end|>\n{% else %}{% for content in message['content'] %}{% if content['type'] == 'image' or 'image' in content or 'image_url' in content %}{% set image_count.value = image_count.value + 1 %}{% if add_vision_id %}Picture {{ image_count.value }}: {% endif %}<|vision_start|><|image_pad|><|vision_end|>{% elif content['type'] == 'video' or 'video' in content %}{% set video_count.value = video_count.value + 1 %}{% if add_vision_id %}Video {{ video_count.value }}: {% endif %}<|vision_start|><|video_pad|><|vision_end|>{% elif 'text' in content %}{{ content['text'] }}{% endif %}{% endfor %}<|im_end|>\n{% endif %}{% endfor %}{% if add_generation_prompt %}<|im_start|>assistant\n{% endif %}"
+        LABELS_MAP = {
+            0: "multi-sarcasm",
+            1: "not-sarcasm",
+            2: "image-sarcasm",
+            3: "text-sarcasm",
+        }
+        if self.config.id2label and (self.config.id2label != {0: 'LABEL_0', 1: 'LABEL_1'}):
+            LABELS_MAP = self.config.id2label
+            
+        # messages = [
+        #     [
+        #         {"role": "system", "content": SYSTEM_PROMPT},
+        #         {
+        #             "role": "user",
+        #             "content": [
+        #                 {"type": "image", "image": osp(image_path, sample["image"])},
+        #                 {"type": "text", "text": USER_PROMPT.format(caption=sample["caption"], ocr=sample["ocr"])}
+        #             ]
+        #         }
+        #     ] for sample in samples.values()
+        # ]
+        messages = []
+        for sample in samples.values():
+            user_instruct = USER_PROMPT_V3.format(
+                caption=sample["caption"],
+                ocr=sample["ocr"]
+            )
+            message = [
+                    {"role": "system", "content": SYSTEM_PROMPT_V2},
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": user_instruct.split("<image>")[0]},
+                            {"type": "image", "image": osp(image_path, sample["image"])},
+                            {"type": "text", "text": "<image>".join(user_instruct.split("<image>")[1:])}
+                        ]
+                    },
+                    {
+                        "role": "assistant", "content": ASSISTANT_ANSWER.format(
+                            text_reasoning=sample["text_reasoning"],
+                            image_reasoning=sample["image_reasoning"],
+                            reasoning=sample["reasoning"]
+                        )
+                    }
+                ]
+            messages.append(message)
+
+        texts = [
+            self.processor.apply_chat_template(
+                message, tokenize=False, add_generation_prompt=True,
+                chat_template=chat_template if self.processor.chat_template is None else self.processor.chat_template,
+            ) for message in messages
+        ]
+        image_inputs, video_inputs = process_vision_info(messages)
+        inputs = self.processor(
+            text=texts,
+            images=image_inputs,
+            videos=video_inputs,
+            padding=True,
+            return_tensors="pt",
+        ).to(self.device)
+
+        logits = self.__call__(**inputs).logits.cpu()
+        outputs = [LABELS_MAP[id_max.item()] for id_max in torch.argmax(logits, dim=-1)]
+        return {key:output for key,output in zip(list(samples.keys()), outputs)}
+    
+
+    @torch.no_grad()
+    def predict_origin(self, samples, image_path):
         '''
         predict output for evaluation
         '''

@@ -57,7 +57,7 @@ def inference(args):
     not_multi_sarcasm_model = MSD.from_pretrained(args.model_path_not_multi, torch_dtype=torch.bfloat16, device_map = "auto")
     total_batches = (len(data) + args.batch_size - 1) // args.batch_size
     for batch in tqdm(get_n_items_at_a_time(data, args.batch_size), total=total_batches):
-        caterories = not_multi_sarcasm_model.predict(batch, args.image_path)
+        caterories = not_multi_sarcasm_model.predict_origin(batch, args.image_path)
         for key, caterory in caterories.items():
             result["results"][key] = caterory
             data[key]["label"] = caterory
@@ -73,7 +73,7 @@ def inference(args):
     model_multi_image_text = MSD.from_pretrained(args.model_path_multi_image_text, torch_dtype=torch.bfloat16, device_map = "auto")
     total_batches = (len(data_multi_image_text) + args.batch_size - 1) // args.batch_size
     for batch in tqdm(get_n_items_at_a_time(data_multi_image_text, args.batch_size), total=total_batches):
-        caterories = model_multi_image_text.predict(batch, args.image_path)
+        caterories = model_multi_image_text.predict_origin(batch, args.image_path)
         for key, caterory in caterories.items():
             result["results"][key] = caterory
             data[key]["label"] = caterory
@@ -98,14 +98,25 @@ def inference(args):
 
 
 if __name__ == "__main__":
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument("--model_path_not_multi", type=str, default="model/hierarchical/cls_multi_not_sarcasm/merged_model")
+    # parser.add_argument("--model_path_multi_image_text", type=str, default="model/hierarchical/cls_multi_sarcasm_vs_image_text_sarcasm/merged_model")
+    # parser.add_argument("--model_path_image_text", type=str, default="model/hierarchical/cls_image_vs_text_sarcasm/merged_model")
+    # parser.add_argument("--batch_size", type=int, default=1)
+    # parser.add_argument("--annotation_path", type=str, default="data/private_test/processed_data.json")
+    # parser.add_argument("--image_path", type=str, default="data/private_test/test-images")
+    # parser.add_argument("--output_dir", type=str, default="submit/private/results_hirachitecture_v2.json")
+    # parser.add_argument("--phase", type=str, default="test")
+    # args = parser.parse_args()
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_path_not_multi", type=str, default="model/hierarchical/cls_multi_not_sarcasm/merged_model")
     parser.add_argument("--model_path_multi_image_text", type=str, default="model/hierarchical/cls_multi_sarcasm_vs_image_text_sarcasm/merged_model")
-    parser.add_argument("--model_path_image_text", type=str, default="model/hierarchical/cls_image_vs_text_sarcasm/merged_model")
+    parser.add_argument("--model_path_image_text", type=str, default="model/hierarchical/cls_image_vs_text_sarcasm_draft_image_text_reasoning_v2/merged_model")
     parser.add_argument("--batch_size", type=int, default=1)
     parser.add_argument("--annotation_path", type=str, default="data/private_test/processed_data.json")
     parser.add_argument("--image_path", type=str, default="data/private_test/test-images")
-    parser.add_argument("--output_dir", type=str, default="submit/results_v2.json")
+    parser.add_argument("--output_dir", type=str, default="submit/private/results_hirachitecture_best_merge_v2_text_image_cls.json")
     parser.add_argument("--phase", type=str, default="test")
     args = parser.parse_args()
 

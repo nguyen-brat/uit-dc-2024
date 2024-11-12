@@ -40,21 +40,21 @@ training_args:
   torch_compile_backend: "cudagraphs"
   use_liger_kernel: False # BUG if True
   quantization: 0 # 0 mean not use quantization 4 mean 4 bit 8 mean 8 bit
-  output_dir: "model/hierarchical/cls_multi_sarcasm_vs_image_text_sarcasm_draft_image_text_reasoning_v2"
+  output_dir: "model/hierarchical/cls_multi_sarcasm_vs_image_text_sarcasm_draft_image_text_reasoning_v3_5"
   overwrite_output_dir: true
-  num_train_epochs: 5
+  num_train_epochs: 4
   per_device_train_batch_size: 1
   per_device_eval_batch_size: 1
-  gradient_accumulation_steps: 32
+  gradient_accumulation_steps: 64
   dataloader_num_workers: 36
   do_train: true
   do_eval: true
   eval_strategy: "steps" # Evaluation is done (and logged) every eval_steps
   logging_strategy: "steps"
   save_strategy: "steps"
-  eval_steps: 20
-  save_steps: 20
-  save_total_limit: 1
+  eval_steps: 10
+  save_steps: 10
+  save_total_limit: 2
   # seed: null
   label_names: ["labels"]
   resume_from_checkpoint: False
@@ -62,7 +62,7 @@ training_args:
   prediction_loss_only: False
   metric_for_best_model: "f1"
   neftune_noise_alpha: 5
-  label_smoothing_factor: 0.1
+  # label_smoothing_factor: 0.1
   # optim: "paged_lion_8bit"
 
 model_args:
@@ -71,8 +71,8 @@ model_args:
   model_kwargs:
       token: "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"
       use_cache: False
-      attn_implementation: "sdpa" # flash_attention_2, sdpa, eager
-  attn_implementation: "sdpa"
+      attn_implementation: "flash_attention_2" # flash_attention_2, sdpa, eager
+  attn_implementation: "flash_attention_2"
 
 tokenizer_args:
   cache_dir: "./tokenizer_data"
@@ -99,7 +99,7 @@ lora_args:
   ]
 
 wandb_args:
-  run_name: "cls_multi_sarcasm_vs_image_text_sarcasm_draft_image_text_reasoning_v2" # "My goodfellas"
+  run_name: "cls_multi_sarcasm_vs_image_text_sarcasm_draft_image_text_reasoning_v3_5" # "My goodfellas"
   logging_steps: 1
   report_to: "wandb"
 

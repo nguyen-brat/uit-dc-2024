@@ -67,7 +67,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=1)
     parser.add_argument("--annotation_path", type=str, default="data/private_test/processed_data.json")
     parser.add_argument("--image_path", type=str, default="data/private_test/test-images")
-    parser.add_argument("--output_dir", type=str, default="submit/results.json")
+    parser.add_argument("--output_dir", type=str, default="submit/results_2_extra_layer_7b_smoothe_loss_draft_text_image_reasoning_batch_1.json")
     parser.add_argument("--phase", type=str, default="test")
     args = parser.parse_args()
 
