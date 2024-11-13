@@ -64,7 +64,7 @@ bash LLaMA-Factory/config_train/merge.sh
 cd ..
 ```
 
-Training sarcasm detection model using custom model call MSD you can change the model config in script/hierarchical_script/cls_image_text.yaml, script/hierarchical_script/cls_mul_vs_img_text.yaml and script/hierarchical_script/cls_not_yet_sarcasm.yaml
+Training sarcasm detection model using custom model call MSD you can change the model config in `script/hierarchical_script/cls_image_text.yaml`, `script/hierarchical_script/cls_mul_vs_img_text.yaml` and `script/hierarchical_script/cls_not_yet_sarcasm.yaml`
 ```bash
 bash script/hierarchical_script/sequency_train.sh
 ```
